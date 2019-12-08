@@ -17,10 +17,10 @@ function New-PureOneCertificate {
 
       Creates a properly formatted self-signed certificate for Pure1 authentication. Uses the specifed certificate store. Non-default stores usually require running as administrator.
     .NOTES
-      Version:        1.0
+      Version:        1.1
       Author:         Cody Hosterman https://codyhosterman.com
-      Creation Date:  12/02/2019
-      Purpose/Change: Initial script development
+      Creation Date:  12/08/2019
+      Purpose/Change: Added 2012 r2 support
   
     *******Disclaimer:******************************************************
     This scripts are offered "as is" with no warranty.  While this 
@@ -36,8 +36,16 @@ function New-PureOneCertificate {
             [Parameter(Position=0)]
             [String]$certificateStore = "cert:\currentuser\my"
     )
-    $policies = [System.Security.Cryptography.CngExportPolicies]::AllowPlaintextExport,[System.Security.Cryptography.CngExportPolicies]::AllowExport
-    $CertObj = New-SelfSignedCertificate -certstorelocation $certificateStore -HashAlgorithm "SHA256" -KeyLength 2048 -KeyAlgorithm RSA -KeyUsage DigitalSignature  -KeyExportPolicy $policies -Subject "PureOneCert" -ErrorAction Stop
+    if (([System.Environment]::OSVersion.Version).Major -eq 6)
+    {
+        #For Windows 2012 support--less specific but the default certificate still works.
+        $CertObj = New-SelfSignedCertificate -certstorelocation $certificateStore -DnsName PureOneCert
+    }
+    else 
+    {
+        $policies = [System.Security.Cryptography.CngExportPolicies]::AllowPlaintextExport,[System.Security.Cryptography.CngExportPolicies]::AllowExport
+        $CertObj = New-SelfSignedCertificate -certstorelocation $certificateStore -HashAlgorithm "SHA256" -KeyLength 2048 -KeyAlgorithm RSA -KeyUsage DigitalSignature  -KeyExportPolicy $policies -Subject "PureOneCert" -ErrorAction Stop   
+    }
     return $CertObj
 }
 function Get-PureOnePublicKey {
