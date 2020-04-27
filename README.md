@@ -91,7 +91,7 @@ https://www.codyhosterman.com/2019/12/pure1-rest-api-authentication-made-easy/
 <!-- /wp:paragraph -->
 
 <!-- wp:list -->
-<ul><li>New-PureOneCertificate</li><li>Get-PureOnePublicKey</li><li>New-PureOneJwt</li><li>New-PureOneRestConnection </li><li>Get-PureOneArrays </li><li>New-PureOneRestOperation </li><li>Get-PureOneArrayTags </li><li>Set-PureOneArrayTags </li><li>Remove-PureOneArrayTags </li><li>Get-PureOneArrayNetworking </li><li>Get-PureOneMetricDetails </li><li>Get-PureOneMetrics </li><li>Get-PureOneVolumes </li><li>Get-PureOnePods </li><li>Get-PureOneVolumeSnapshots </li><li>Get-PureOneFileSystems </li><li>Get-PureOneFileSystemSnapshots </li><li>Get-PureOneArrayBusyMeter</li></ul>
+<ul><li>New-PureOneCertificate</li><li>Get-PureOnePublicKey</li><li>New-PureOneJwt</li><li>New-PureOneRestConnection </li><li>Get-PureOneArrays </li><li>New-PureOneRestOperation </li><li>Get-PureOneArrayTag </li><li>Set-PureOneArrayTag </li><li>Remove-PureOneArrayTag </li><li>Get-PureOneArrayNetworking </li><li>Get-PureOneMetricDetail </li><li>Get-PureOneMetric </li><li>Get-PureOneVolume </li><li>Get-PureOnePod </li><li>Get-PureOneVolumeSnapshot </li><li>Get-PureOneFileSystem </li><li>Get-PureOneFileSystemSnapshot </li><li>Get-PureOneArrayBusyMeter</li></ul>
 <!-- /wp:list -->
 
 <!-- wp:paragraph -->
