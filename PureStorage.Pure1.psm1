@@ -207,11 +207,22 @@ function New-PureOneRestConnection {
       Pure1 Application ID, a certificate or a private key.
     .OUTPUTS
       Does not return anything--it stores the Pure1 REST access token in a global variable called $global:pureOneRestHeader. Valid for 10 hours.
+    .EXAMPLE
+      PS C:\ $cert = New-PureOneCertificate
+      PS C:\ $cert | New-PureOneRestConnection -pureAppID pure1:apikey:PZogg67LcjImYTiI
+
+      Create a Pure1 REST connection using a passed in certificate and the specified Pure1 App ID
+    .EXAMPLE
+      PS C:\ $cert = New-PureOneCertificate
+      PS C:\ $privateKey = [System.Security.Cryptography.X509Certificates.RSACertificateExtensions]::GetRSAPrivateKey($cert)
+      PS C:\ $privateKey | New-PureOneRestConnection -pureAppID pure1:apikey:PZogg67LcjImYTiI
+
+      Create a Pure1 REST connection using a passed in private key and the specified Pure1 App ID
     .NOTES
-      Version:        1.1
+      Version:        1.2
       Author:         Cody Hosterman https://codyhosterman.com
-      Creation Date:  12/02/2019
-      Purpose/Change: Initial script development
+      Creation Date:  04/26/2020
+      Purpose/Change: Parameter sets/examples
   
     *******Disclaimer:******************************************************
     This scripts are offered "as is" with no warranty.  While this 
@@ -222,15 +233,16 @@ function New-PureOneRestConnection {
     ************************************************************************
     #>
 
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName='Certificate')]
     Param(
-            [Parameter(Position=0,ValueFromPipeline=$True)]
+            [Parameter(Position=0,ValueFromPipeline=$True,mandatory=$True,ParameterSetName='Certificate')]
             [System.Security.Cryptography.X509Certificates.X509Certificate]$certificate,
 
-            [Parameter(Position=1,mandatory=$True)]
+            [Parameter(Position=1,mandatory=$True,ParameterSetName='Certificate')]
+            [Parameter(Position=1,mandatory=$True,ParameterSetName='PrivateKey')]
             [string]$pureAppID,
             
-            [Parameter(Position=2,ValueFromPipeline=$True)]
+            [Parameter(Position=2,ValueFromPipeline=$True,mandatory=$True,ParameterSetName='PrivateKey')]
             [System.Security.Cryptography.RSA]$privateKey
     )
     if ($null -eq $certificate)
@@ -259,11 +271,27 @@ function Get-PureOneArray {
       None required. Optional inputs are array type, array name, and Pure1 access token.
     .OUTPUTS
       Returns the Pure Storage array information in Pure1.
+    .EXAMPLE
+      PS C:\ Get-PureOneArray
+
+      Returns all arrays in Pure1 organization
+    .EXAMPLE
+      PS C:\ Get-PureOneArray -arrayProduct FlashBlade
+
+      Returns all FlashBlades in Pure1 organization
+    .EXAMPLE
+      PS C:\ Get-PureOneArray -arrayId ef9d6965-7e16-4d46-9425-d2fea48a8fe5
+
+      Returns array with specified ID
+    .EXAMPLE
+      PS C:\ Get-PureOneArray -arrayName sn1-m20r2-c05-36
+
+      Returns array with specified name
     .NOTES
-      Version:        1.0
+      Version:        1.1
       Author:         Cody Hosterman https://codyhosterman.com
-      Creation Date:  01/12/2019
-      Purpose/Change: Initial script development
+      Creation Date:  04/26/2020
+      Purpose/Change: Parameter sets
   
     *******Disclaimer:******************************************************
     This scripts are offered "as is" with no warranty.  While this 
@@ -274,65 +302,45 @@ function Get-PureOneArray {
     ************************************************************************
     #>
 
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName='All')]
     Param(
-            [Parameter(Position=0)]
+            [Parameter(Position=0,mandatory=$True,ParameterSetName='Name')]
             [string]$arrayName,
 
-            [Parameter(Position=1)]
+            [Parameter(Position=1,mandatory=$True,ParameterSetName='Product')]
+            [ValidateSet('Purity//FA','Purity//FB','FlashArray','FlashBlade')]
             [string]$arrayProduct,
             
-            [Parameter(Position=2)]
+            [Parameter(Position=2,mandatory=$True,ParameterSetName='ID')]
             [string]$arrayId,
 
-            [Parameter(Position=3)]
+            [Parameter(Position=3,ParameterSetName='ID')]
+            [Parameter(Position=3,ParameterSetName='Name')]
+            [Parameter(Position=3,ParameterSetName='Product')]
+            [Parameter(Position=3,ParameterSetName='All')]
             [string]$pureOneToken
     )
     Begin{
         if ($arrayProduct -ne "")
         {
             switch ($arrayProduct) {
-                "Purity//FA" {$arrayProduct = 'Purity//FA'; break}
-                "Purity//FB" {$arrayProduct = 'Purity//FB'; break}
                 "FlashArray" {$arrayProduct = 'Purity//FA'; break}
                 "FlashBlade" {$arrayProduct = 'Purity//FB'; break}
-                default {throw "The entered value, $($arrayProduct), is not a valid Pure Array product--accepted values are Purity//FB, Purity//FA, FlashArray, or FlashBlade"; break}
              }
         }
-        $parameterCount = 0
         if ($arrayName -ne "")
         {
-            $parameterCount++
             $restQuery = "?names=`'$($arrayName)`'"
         }
         if ($arrayProduct -ne "")
         {
-            $parameterCount++
             $restQuery = "?filter=os=`'$($arrayProduct)`'"
         }
         if ($arrayId -ne "")
         {
-            $parameterCount++
             $restQuery = "?ids=`'$($arrayId)`'"
         }
-        if ($parameterCount -gt 1)
-        {
-            throw "Please only enter in one search parameter: ID, name, or product"
-        }
-        if (($null -eq $Global:pureOneRestHeader) -and ($pureOneToken -eq ""))
-        {
-            throw "No access token found in the global variable or passed in. Run the cmdlet New-PureOneRestConnection to authenticate."
-        }
-        if ($null -eq $Global:pureOneRestHeader)
-        {
-            $pureOneHeader = @{authorization="Bearer $($pureOnetoken)"}
-        }
-        elseif (($null -ne $pureOneToken) -and ($pureOneToken -ne "")) {
-            $pureOneHeader = @{authorization="Bearer $($pureOnetoken)"}
-        }
-        else {
-            $pureOneHeader = $Global:pureOneRestHeader
-        }
+        $pureOneHeader = Set-PureOneHeader -pureOneToken $pureOneToken -ErrorAction Stop
     }
     Process{
         $apiendpoint = "https://api.pure1.purestorage.com/api/1.0/arrays" + $restQuery
@@ -352,11 +360,23 @@ function New-PureOneRestOperation {
       A filter/query, an resource, a REST body, and optionally an access token.
     .OUTPUTS
       Returns Pure1 REST response.
+    .EXAMPLE
+      PS C:\ $cert = New-PureOneCertificate
+      PS C:\ $cert | New-PureOneRestConnection -pureAppID pure1:apikey:PZogg67LcjImYTiI
+      PS C:\ New-PureOneRestOperation -resourceType volumes -restOperationType GET
+
+      Create a Pure1 REST connection and requests all volumes
+    .EXAMPLE
+      PS C:\ $cert = New-PureOneCertificate
+      PS C:\ $cert | New-PureOneRestConnection -pureAppID pure1:apikey:PZogg67LcjImYTiI
+      PS C:\ New-PureOneRestOperation -resourceType arrays -restOperationType GET
+
+      Create a Pure1 REST connection and requests all arrays
     .NOTES
-      Version:        1.0
+      Version:        1.1
       Author:         Cody Hosterman https://codyhosterman.com
-      Creation Date:  01/12/2019
-      Purpose/Change: Initial script development
+      Creation Date:  04/26/2020
+      Purpose/Change: Added continuation token support
   
     *******Disclaimer:******************************************************
     This scripts are offered "as is" with no warranty.  While this 
@@ -379,40 +399,40 @@ function New-PureOneRestOperation {
         [string]$jsonBody,
 
         [Parameter(Position=3,mandatory=$True)]
+        [ValidateSet('POST','GET','DELETE','PUT')]
         [string]$restOperationType,
 
         [Parameter(Position=4)]
         [string]$pureOneToken
     )
     Begin{
-        if (($null -eq $Global:pureOneRestHeader) -and ($pureOneToken -eq ""))
-        {
-            throw "No access token found in the global variable or passed in. Run the cmdlet New-PureOneRestConnection to authenticate."
-        }
-        if ($null -eq $Global:pureOneRestHeader)
-        {
-            $pureOneHeader = @{authorization="Bearer $($pureOnetoken)"}
-        }
-        elseif (($null -ne $pureOneToken) -and ($pureOneToken -ne "")) {
-            $pureOneHeader = @{authorization="Bearer $($pureOnetoken)"}
-        }
-        else {
-            $pureOneHeader = $Global:pureOneRestHeader
-        }
+      $pureOneHeader = Set-PureOneHeader -pureOneToken $pureOneToken -ErrorAction Stop
     }
     Process{
-        $apiendpoint = "https://api.pure1.purestorage.com/api/1.0/" + $resourceType + $queryFilter
+        $apiendpoint = "https://api.pure1.purestorage.com/api/$($global:pureOneRestVersion)/" + $resourceType + $queryFilter
         if ($jsonBody -ne "")
         {
-            $pureOneReponse = Invoke-RestMethod -Method $restOperationType -Uri $apiendpoint -ContentType "application/json" -Headers $pureOneHeader  -Body $jsonBody
+            $pureResponse = Invoke-RestMethod -Method $restOperationType -Uri $apiendpoint -ContentType "application/json" -Headers $pureOneHeader  -Body $jsonBody
+            $pureObjects = $pureResponse.items
         }
         else 
         {
-            $pureOneReponse = Invoke-RestMethod -Method $restOperationType -Uri $apiendpoint -ContentType "application/json" -Headers $pureOneHeader 
+            $pureResponse = Invoke-RestMethod -Method $restOperationType -Uri $apiendpoint -ContentType "application/json" -Headers $pureOneHeader 
+            $pureObjects = $pureResponse.items
+            while ($null -ne $pureResponse.continuation_token) {
+                $continuationToken = $pureResponse.continuation_token
+                if ($queryFilter -eq "")
+                {
+                    $apiendpoint = $apiendpoint + "?"
+                }
+                $apiendpoint = $apiendpoint + "&continuation_token=`'$($continuationToken)`'"
+                $pureResponse = Invoke-RestMethod -Method $restOperationType -Uri $apiendpoint -ContentType "application/json" -Headers $pureOneHeader
+                $pureObjects += $pureResponse.items
+            }  
         }   
     }
     End{
-        return $pureOneReponse.items
+        return $pureObjects
     }
 }
 function Get-PureOneArrayTag {
@@ -425,11 +445,31 @@ function Get-PureOneArrayTag {
       Array name(s) or ID(s) and optionally a tag key name and/or an access token.
     .OUTPUTS
       Returns the Pure Storage array(s) key/value tag information in Pure1.
+    .EXAMPLE
+      PS C:\ Get-PureOneArrayTag 
+
+      Returns all tags
+    .EXAMPLE
+      PS C:\ Get-PureOneArrayTag -tagKey owner 
+
+      Returns all tags with the key of "owner"
+    .EXAMPLE
+      PS C:\ Get-PureOneArrayTag -arrayNames flasharray-m50-2
+
+      Returns all matching tags on array with specified name
+    .EXAMPLE
+      PS C:\ Get-PureOneArrayTag -tagKey owner -arrayIds aad42743-611e-45ac-8b93-a869c4728a1d
+
+      Returns matching tags with key of "owner" on array with specified ID
+    .EXAMPLE
+      PS C:\ Get-PureOneArrayTag -tagKey owner -arrayIds aad42743-611e-45ac-8b93-a869c4728a1d,e8998e19-aa08-45db-8bd0-4ea9171277a3
+
+      Returns matching tags with key of "owner" on the arrays with specified IDs
     .NOTES
-      Version:        1.0
+      Version:        1.1
       Author:         Cody Hosterman https://codyhosterman.com
-      Creation Date:  01/14/2019
-      Purpose/Change: Initial script development
+      Creation Date:  04/26/2020
+      Purpose/Change: Parameter sets added
   
     *******Disclaimer:******************************************************
     This scripts are offered "as is" with no warranty.  While this 
@@ -440,39 +480,24 @@ function Get-PureOneArrayTag {
     ************************************************************************
     #>
 
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName='TagKey')]
     Param(
-            [Parameter(Position=0)]
+            [Parameter(Position=0,ParameterSetName='ArrayNames')]
             [string[]]$arrayNames,
          
-            [Parameter(Position=1)]
+            [Parameter(Position=1,ParameterSetName='ArrayIDs')]
             [string[]]$arrayIds,
 
-            [Parameter(Position=2)]
+            [Parameter(Position=2,ParameterSetName='ArrayIDs')]
+            [Parameter(Position=2,ParameterSetName='ArrayNames')]
+            [Parameter(Position=2,ParameterSetName='TagKey')]
             [string]$tagKey,
 
             [Parameter(Position=3)]
             [string]$pureOneToken
     )
     Begin{
-        if (($arrayNames.count -gt 0) -and ($arrayIds.count -gt 0))
-        {
-            throw "Please only enter an array name or an ID."
-        }
-        if (($null -eq $Global:pureOneRestHeader) -and ($pureOneToken -eq ""))
-        {
-            throw "No access token found in the global variable or passed in. Run the cmdlet New-PureOneRestConnection to authenticate."
-        }
-        if ($null -eq $Global:pureOneRestHeader)
-        {
-            $pureOneHeader = @{authorization="Bearer $($pureOnetoken)"}
-        }
-        elseif (($null -ne $pureOneToken) -and ($pureOneToken -ne "")) {
-            $pureOneHeader = @{authorization="Bearer $($pureOnetoken)"}
-        }
-        else {
-            $pureOneHeader = $Global:pureOneRestHeader
-        }
+      $pureOneHeader = Set-PureOneHeader -pureOneToken $pureOneToken -ErrorAction Stop
     }
     Process{
         if ($arrayNames.count -gt 0)
@@ -533,11 +558,27 @@ function Set-PureOneArrayTag {
       Array name(s) or ID(s) and a tag key name/value and/or optionally an access token.
     .OUTPUTS
       Returns the Pure Storage array(s) key/value tag information in Pure1.
+    .EXAMPLE
+      PS C:\ Set-PureOneArrayTag -tagKey owner -tagValue cody -arrayNames flasharray-m50-2
+
+      Creates/updates tag on array with specified name
+    .EXAMPLE
+      PS C:\ Set-PureOneArrayTag -tagKey owner -tagValue cody -arrayNames flasharray-m50-2,flasharray-m50-1
+
+      Creates/updates tag on specified arrays
+    .EXAMPLE
+      PS C:\ Set-PureOneArrayTag -tagKey owner -arrayIds aad42743-611e-45ac-8b93-a869c4728a1d
+
+      Creates/updates tag on array with specified ID
+    .EXAMPLE
+      PS C:\ Set-PureOneArrayTag -tagKey owner -arrayIds aad42743-611e-45ac-8b93-a869c4728a1d,e8998e19-aa08-45db-8bd0-4ea9171277a3
+
+      Creates/updates tag on the arrays with specified IDs
     .NOTES
-      Version:        1.0
+      Version:        1.1
       Author:         Cody Hosterman https://codyhosterman.com
-      Creation Date:  01/14/2019
-      Purpose/Change: Initial script development
+      Creation Date:  04/26/2020
+      Purpose/Change: Parameter sets added
   
     *******Disclaimer:******************************************************
     This scripts are offered "as is" with no warranty.  While this 
@@ -548,18 +589,20 @@ function Set-PureOneArrayTag {
     ************************************************************************
     #>
 
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName='ArrayNames')]
     Param(
-            [Parameter(Position=0)]
+            [Parameter(Position=0,mandatory=$True,ParameterSetName='ArrayNames')]
             [string[]]$arrayNames,
          
-            [Parameter(Position=1)]
+            [Parameter(Position=1,mandatory=$True,ParameterSetName='ArrayIDs')]
             [string[]]$arrayIds,
 
-            [Parameter(Position=2,mandatory=$True)]
+            [Parameter(Position=2,mandatory=$True,ParameterSetName='ArrayIDs')]
+            [Parameter(Position=2,mandatory=$True,ParameterSetName='ArrayNames')]
             [string]$tagKey,
 
-            [Parameter(Position=3,mandatory=$True)]
+            [Parameter(Position=3,mandatory=$True,ParameterSetName='ArrayIDs')]
+            [Parameter(Position=3,mandatory=$True,ParameterSetName='ArrayNames')]
             [string]$tagValue,
 
             [Parameter(Position=4)]
@@ -567,28 +610,7 @@ function Set-PureOneArrayTag {
 
     )
     Begin{
-        if (($arrayNames.Count -gt 0) -and ($arrayIds.Count -gt 0))
-        {
-            throw "Please only enter an array name or an ID."
-        }
-        if (($arrayNames.Count -eq 0) -and ($arrayIds.Count -eq 0))
-        {
-            throw "Please enter an array name or an array ID."
-        }
-        if (($null -eq $Global:pureOneRestHeader) -and ($pureOneToken -eq ""))
-        {
-            throw "No access token found in the global variable or passed in. Run the cmdlet New-PureOneRestConnection to authenticate."
-        }
-        if ($null -eq $Global:pureOneRestHeader)
-        {
-            $pureOneHeader = @{authorization="Bearer $($pureOnetoken)"}
-        }
-        elseif (($null -ne $pureOneToken) -and ($pureOneToken -ne "")) {
-            $pureOneHeader = @{authorization="Bearer $($pureOnetoken)"}
-        }
-        else {
-            $pureOneHeader = $Global:pureOneRestHeader
-        }
+      $pureOneHeader = Set-PureOneHeader -pureOneToken $pureOneToken -ErrorAction Stop
     }
     Process{
         if ($arrayNames.count -gt 0)
@@ -642,11 +664,23 @@ function Remove-PureOneArrayTag {
       Array name(s) or ID(s) and one or more tag key names and/or optionally an access token. If you do not enter a key name, all tags for the input arrays will be removed.
     .OUTPUTS
       Returns nothing.
+    .EXAMPLE
+      PS C:\ Remove-PureOneArrayTag -tagKey owner -arrayNames flasharray-m50-2
+
+      Removes all matching tags on array with specified name
+    .EXAMPLE
+      PS C:\ Remove-PureOneArrayTag -tagKey owner -arrayIds aad42743-611e-45ac-8b93-a869c4728a1d
+
+      Removes matching tags with key of "owner" on array with specified ID
+    .EXAMPLE
+      PS C:\ Remove-PureOneArrayTag -tagKey owner -arrayIds aad42743-611e-45ac-8b93-a869c4728a1d,e8998e19-aa08-45db-8bd0-4ea9171277a3
+
+      Removes matching tags with key of "owner" on the arrays with specified IDs
     .NOTES
-      Version:        1.0
+      Version:        1.1
       Author:         Cody Hosterman https://codyhosterman.com
-      Creation Date:  01/15/2019
-      Purpose/Change: Initial script development
+      Creation Date:  04/26/2020
+      Purpose/Change: Parameter sets/example added
   
     *******Disclaimer:******************************************************
     This scripts are offered "as is" with no warranty.  While this 
@@ -657,43 +691,23 @@ function Remove-PureOneArrayTag {
     ************************************************************************
     #>
 
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName='ArrayNames')]
     Param(
-            [Parameter(Position=0)]
+            [Parameter(Position=0,mandatory=$True,ParameterSetName='ArrayNames')]
             [string[]]$arrayNames,
          
-            [Parameter(Position=1)]
+            [Parameter(Position=1,mandatory=$True,ParameterSetName='ArrayIDs')]
             [string[]]$arrayIds,
 
-            [Parameter(Position=2)]
-            [string[]]$tagKeys,
+            [Parameter(Position=2,mandatory=$True,ParameterSetName='ArrayIDs')]
+            [Parameter(Position=2,mandatory=$True,ParameterSetName='ArrayNames')]
+            [string]$tagKeys,
 
             [Parameter(Position=3)]
             [string]$pureOneToken
     )
     Begin{
-        if (($arrayNames.Count -gt 0) -and ($arrayIds.Count -gt 0))
-        {
-            throw "Please only enter one or more array names or one or more array IDs."
-        }
-        if (($arrayNames.Count -eq 0) -and ($arrayIds.Count -eq 0))
-        {
-            throw "Please enter one or more array names or an array IDs."
-        }
-        if (($null -eq $Global:pureOneRestHeader) -and ($pureOneToken -eq ""))
-        {
-            throw "No access token found in the global variable or passed in. Run the cmdlet New-PureOneRestConnection to authenticate."
-        }
-        if ($null -eq $Global:pureOneRestHeader)
-        {
-            $pureOneHeader = @{authorization="Bearer $($pureOnetoken)"}
-        }
-        elseif (($null -ne $pureOneToken) -and ($pureOneToken -ne "")) {
-            $pureOneHeader = @{authorization="Bearer $($pureOnetoken)"}
-        }
-        else {
-            $pureOneHeader = $Global:pureOneRestHeader
-        }
+      $pureOneHeader = Set-PureOneHeader -pureOneToken $pureOneToken -ErrorAction Stop
     }
     Process{
         if ($arrayNames.count -gt 0)
@@ -755,11 +769,23 @@ function Get-PureOneArrayNetworking {
       Array name or ID and optionally access token.
     .OUTPUTS
       Returns the Pure Storage array network information in Pure1.
+    .EXAMPLE
+      PS C:\ Get-PureOneArrayNetworking -arrayName sn1-m20-c08-17 
+
+      Returns the networking information for all network interfaces
+    .EXAMPLE
+      PS C:\ Get-PureOneArrayNetworking -arrayName sn1-m20-c08-17 -virtualIP
+
+      Returns the networking information for virtual IP interfaces
+    .EXAMPLE
+      PS C:\ Get-PureOneArrayNetworking -arrayName sn1-m20-c08-17 -service iscsi
+
+      Returns the networking information for iscsi interfaces
     .NOTES
-      Version:        1.0
+      Version:        1.1
       Author:         Cody Hosterman https://codyhosterman.com
-      Creation Date:  01/16/2019
-      Purpose/Change: Initial script development
+      Creation Date:  04/27/2020
+      Purpose/Change: Parameter sets and examples added
   
     *******Disclaimer:******************************************************
     This scripts are offered "as is" with no warranty.  While this 
@@ -770,18 +796,20 @@ function Get-PureOneArrayNetworking {
     ************************************************************************
     #>
 
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName='ArrayName')]
     Param(
-            [Parameter(Position=0)]
+            [Parameter(Position=0,mandatory=$True,ParameterSetName='ArrayName')]
             [string]$arrayName,
          
-            [Parameter(Position=1)]
+            [Parameter(Position=1,mandatory=$True,ParameterSetName='ArrayID')]
             [string]$arrayId,
 
-            [Parameter(Position=2)]
+            [Parameter(Position=2,ParameterSetName='ArrayID')]
+            [Parameter(Position=2,ParameterSetName='ArrayName')]
             [Switch]$virtualIP,
 
-            [Parameter(Position=3)]
+            [Parameter(Position=3,ParameterSetName='ArrayID')]
+            [Parameter(Position=3,ParameterSetName='ArrayName')]
             [string]$service,
 
             [Parameter(Position=4)]
@@ -792,29 +820,8 @@ function Get-PureOneArrayNetworking {
         {
             throw "Virtual IPs are only management-based services, so you cannot request virtual IPs with $($service) as the service"
         }
-        if (($arrayName -eq "") -and ($arrayId -eq ""))
-        {
-            throw "Please enter an array name or ID."
+          $pureOneHeader = Set-PureOneHeader -pureOneToken $pureOneToken -ErrorAction Stop
         }
-        elseif (($arrayName -ne "") -and ($arrayId -ne ""))
-        {
-            throw "Please only enter an array name or an ID."
-        }
-        if (($null -eq $Global:pureOneRestHeader) -and ($pureOneToken -eq ""))
-        {
-            throw "No access token found in the global variable or passed in. Run the cmdlet New-PureOneRestConnection to authenticate."
-        }
-        if ($null -eq $Global:pureOneRestHeader)
-        {
-            $pureOneHeader = @{authorization="Bearer $($pureOnetoken)"}
-        }
-        elseif (($null -ne $pureOneToken) -and ($pureOneToken -ne "")) {
-            $pureOneHeader = @{authorization="Bearer $($pureOnetoken)"}
-        }
-        else {
-            $pureOneHeader = $Global:pureOneRestHeader
-        }
-    }
     Process{
         $restQuery = "?"
         if ($virtualIP -eq $true)
@@ -836,6 +843,10 @@ function Get-PureOneArrayNetworking {
         }
         $apiendpoint = "https://api.pure1.purestorage.com/api/1.0/network-interfaces" + $restQuery
         $pureArrayNetwork = Invoke-RestMethod -Method Get -Uri $apiendpoint -ContentType "application/json" -Headers $pureOneHeader 
+        if ($pureArrayNetwork.items.count -lt 1)
+        {
+            throw "No networking information found. The specificied service: [$($service)] might not exist on this array or it might be misspelled"
+        }
     }
     End{
         return $pureArrayNetwork.items
@@ -851,11 +862,23 @@ function Get-PureOneMetricDetail {
       Resource type or metric name and/or access token.
     .OUTPUTS
       Returns the Pure Storage array information in Pure1.
+    .EXAMPLE
+      PS C:\ Get-PureOneMetricDetail
+
+      Returns the details for all available metrics
+    .EXAMPLE
+      PS C:\ Get-PureOneMetricDetail -resourceType volumes
+
+      Returns the details for all available volume-based metrics
+    .EXAMPLE
+      PS C:\ Get-PureOneMetricDetail -metricName pod_write_qos_rate_limit_time_us
+
+      Returns the details for the metric named pod_write_qos_rate_limit_time_us
     .NOTES
-      Version:        1.0
+      Version:        1.1
       Author:         Cody Hosterman https://codyhosterman.com
-      Creation Date:  01/18/2019
-      Purpose/Change: Initial script development
+      Creation Date:  04/27/2020
+      Purpose/Change: Parameter sets and examples added
   
     *******Disclaimer:******************************************************
     This scripts are offered "as is" with no warranty.  While this 
@@ -866,32 +889,19 @@ function Get-PureOneMetricDetail {
     ************************************************************************
     #>
 
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName='ResourceType')]
     Param(
-            [Parameter(Position=0)]
+            [Parameter(Position=0,ParameterSetName='MetricName')]
             [string]$metricName,
          
-            [Parameter(Position=1)]
+            [Parameter(Position=1,ParameterSetName='ResourceType')]
             [string]$resourceType,
 
             [Parameter(Position=2)]
             [string]$pureOneToken
     )
     Begin{
-        if (($null -eq $Global:pureOneRestHeader) -and ($pureOneToken -eq ""))
-        {
-            throw "No access token found in the global variable or passed in. Run the cmdlet New-PureOneRestConnection to authenticate."
-        }
-        if ($null -eq $Global:pureOneRestHeader)
-        {
-            $pureOneHeader = @{authorization="Bearer $($pureOnetoken)"}
-        }
-        elseif (($null -ne $pureOneToken) -and ($pureOneToken -ne "")) {
-            $pureOneHeader = @{authorization="Bearer $($pureOnetoken)"}
-        }
-        else {
-            $pureOneHeader = $Global:pureOneRestHeader
-        }
+      $pureOneHeader = Set-PureOneHeader -pureOneToken $pureOneToken -ErrorAction Stop
     }
     Process{
         $restQuery = "?"
@@ -903,7 +913,7 @@ function Get-PureOneMetricDetail {
         {
             $restQuery = $restQuery +"names=`'$($metricName)`'"
         }
-        $apiendpoint = "https://api.pure1.purestorage.com/api/1.0/metrics" + $restQuery
+        $apiendpoint = "https://api.pure1.purestorage.com/api/$($global:pureOneRestVersion)/metrics" + $restQuery
         $pureOneMetrics = Invoke-RestMethod -Method Get -Uri $apiendpoint -ContentType "application/json" -Headers $pureOneHeader 
     }
     End{
@@ -920,11 +930,31 @@ function Get-PureOneMetric {
       Required: resource name or ID and metric name. Optional: timeframe, granularity, and aggregation type (if none entered defaults will be used based on metric entered). Also optionally an access token.
     .OUTPUTS
       Returns the Pure Storage array information in Pure1.
+    .EXAMPLE
+      PS C:\ Get-PureOneMetric -metricName array_read_iops -objectName sn1-x70-c05-33
+
+      Returns all data points available for the specified metric on the target object (in this case read IOPs for the array)
+    .EXAMPLE
+      PS C:\ Get-PureOneMetric -metricName array_read_iops -objectName sn1-x70-c05-33 -maximum
+
+      Returns all maximum data points (no average taken, the highest value instead is used) available for the specified metric on the target object (in this case read IOPs for the array)
+    .EXAMPLE
+      PS C:\ Get-PureOneMetric -metricName array_read_iops -objectName sn1-x70-c05-33 -startTime (get-date).AddDays(-10)
+
+      Returns all data points for the last 10 days for the specified metric on the target object (in this case read IOPs for the array)
+    .EXAMPLE
+      PS C:\ Get-PureOneMetric -metricName array_read_iops -objectName sn1-x70-c05-33 -startTime (get-date).AddDays(-7) -endTime (get-date).AddDays(-6) 
+
+      Returns all data points for the the one day a week prior for the specified metric on the target object (in this case read IOPs for the array)
+    .EXAMPLE
+      PS C:\ Get-PureOneMetric -metricName array_read_iops -objectName sn1-x70-c05-33 -startTime (get-date).AddDays(-7) -endTime (get-date).AddDays(-6) -granularity 3600000 -maximum
+
+      Returns the highest valued data point per hour (every 3,600,000 milliseconds) for the the one day a week prior for the specified metric on the target object (in this case read IOPs for the array)
     .NOTES
-      Version:        1.0
+      Version:        1.1
       Author:         Cody Hosterman https://codyhosterman.com
-      Creation Date:  01/18/2019
-      Purpose/Change: Initial script development
+      Creation Date:  04/27/2020
+      Purpose/Change: Parameter sets and examples added
   
     *******Disclaimer:******************************************************
     This scripts are offered "as is" with no warranty.  While this 
@@ -934,18 +964,22 @@ function Get-PureOneMetric {
     will not be liable for any damage or loss to the system.
     ************************************************************************
     #>
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName='ObjectNameAvg')]
     Param(
-            [Parameter(Position=0)]
+            [Parameter(Position=0,mandatory=$True,ParameterSetName='ObjectNameAvg')]
+            [Parameter(Position=0,mandatory=$True,ParameterSetName='ObjectNameMax')]
             [string]$objectName,
-         
-            [Parameter(Position=1)]
+        
+            [Parameter(Position=1,mandatory=$True,ParameterSetName='ObjectIDAvg')]
+            [Parameter(Position=1,mandatory=$True,ParameterSetName='ObjectIDMax')]
             [string]$objectId,
 
-            [Parameter(Position=2)]
+            [Parameter(Position=2,ParameterSetName='ObjectIDAvg')]
+            [Parameter(Position=2,ParameterSetName='ObjectNameAvg')]
             [switch]$average,
 
-            [Parameter(Position=3)]
+            [Parameter(Position=3,ParameterSetName='ObjectIDMax')]
+            [Parameter(Position=3,ParameterSetName='ObjectNameMax')]
             [switch]$maximum,
 
             [Parameter(Position=4,mandatory=$True)]
@@ -964,38 +998,13 @@ function Get-PureOneMetric {
             [string]$pureOneToken
     )
     Begin{
-        if (($average -eq $true) -and ($maximum -eq $true))
-        {
-            throw "Please only choose average or maximum, not both."
-        }
-        elseif (($average -eq $false) -and ($maximum -eq $false)) 
+        if (($average -eq $false) -and ($maximum -eq $false)) 
         {
             #defaulting to average if neither option is entered
             $average = $true
         }
-        if (($objectName -eq "") -and ($objectId -eq ""))
-        {
-            throw "Please enter an object name or ID."
+          $pureOneHeader = Set-PureOneHeader -pureOneToken $pureOneToken -ErrorAction Stop
         }
-        elseif (($objectName -ne "") -and ($objectId -ne ""))
-        {
-            throw "Please only enter an object name or an ID."
-        }
-        if (($null -eq $Global:pureOneRestHeader) -and ($pureOneToken -eq ""))
-        {
-            throw "No access token found in the global variable or passed in. Run the cmdlet New-PureOneRestConnection to authenticate."
-        }
-        if ($null -eq $Global:pureOneRestHeader)
-        {
-            $pureOneHeader = @{authorization="Bearer $($pureOnetoken)"}
-        }
-        elseif (($null -ne $pureOneToken) -and ($pureOneToken -ne "")) {
-            $pureOneHeader = @{authorization="Bearer $($pureOnetoken)"}
-        }
-        else {
-            $pureOneHeader = $Global:pureOneRestHeader
-        }
-    }
     Process{
         #get metric rules
         $metricDetails = Get-PureOneMetricDetail -metricName $metricName
@@ -1044,7 +1053,7 @@ function Get-PureOneMetric {
         else {
             $restQuery = $restQuery + "ids=`'$($objectId)`'"
         }
-        $apiendpoint = "https://api.pure1.purestorage.com/api/1.0/metrics/history" + $restQuery
+        $apiendpoint = "https://api.pure1.purestorage.com/api/$($global:pureOneRestVersion)/metrics/history" + $restQuery
         $pureOneMetrics = Invoke-RestMethod -Method Get -Uri $apiendpoint -ContentType "application/json" -Headers $pureOneHeader 
     }
     End{
@@ -1061,11 +1070,31 @@ function Get-PureOneVolume {
       None required. Optional inputs are array type, array name, and Pure1 access token.
     .OUTPUTS
       Returns the Pure Storage array information in Pure1.
+    .EXAMPLE
+      PS C:\ Get-PureOneVolume 
+
+      Get all volumes on all FlashArrays.
+    .EXAMPLE
+      PS C:\ Get-PureOneVolume -arrayName sn1-x70-b05-33
+
+      Get all volumes on specified FlashArray.
+    .EXAMPLE
+      PS C:\ Get-PureOneVolume -volumeName myVolume-01
+
+      Get all volumes with the specified name. If the same name exists on two more more arrays, all objects will be returned.
+    .EXAMPLE
+      PS C:\ Get-PureOneVolume -volumeName myVolume-01 -arrayName sn1-x70-b05-33
+
+      Get the volume with the specified name if it exists on that array.
+    .EXAMPLE
+      PS C:\ Get-PureOneVolume -volumeSerial 1037B35FD0EF40A500C65559
+
+      Get the volume with the specified serial number.
     .NOTES
-      Version:        1.0
+      Version:        1.1
       Author:         Cody Hosterman https://codyhosterman.com
-      Creation Date:  01/18/2019
-      Purpose/Change: Initial script development
+      Creation Date:  04/27/2020
+      Purpose/Change: Parameter sets and examples added
   
     *******Disclaimer:******************************************************
     This scripts are offered "as is" with no warranty.  While this 
@@ -1076,49 +1105,44 @@ function Get-PureOneVolume {
     ************************************************************************
     #>
 
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName='ArrayNameVolName')]
     Param(
-            [Parameter(Position=0)]
+            [Parameter(Position=0,ParameterSetName='ArrayNameVolName')]
+            [Parameter(Position=0,ParameterSetName='ArrayNameVolSerial')]
             [string]$arrayName,
             
-            [Parameter(Position=1)]
+            [Parameter(Position=1,ParameterSetName='ArrayIDVolName')]
+            [Parameter(Position=1,mandatory=$True,ParameterSetName='ArrayIDVolSerial')]
             [string]$arrayId,
 
-            [Parameter(Position=2)]
+            [Parameter(Position=2,ParameterSetName='ArrayIDVolName')]
+            [Parameter(Position=2,ParameterSetName='ArrayNameVolName')]
             [string]$volumeName,
 
-            [Parameter(Position=3)]
+            [Parameter(Position=3,ParameterSetName='ArrayIDVolSerial')]
+            [Parameter(Position=3,ParameterSetName='ArrayNameVolSerial')]
             [string]$volumeSerial,
 
             [Parameter(Position=4)]
             [string]$pureOneToken
     )
     Begin{
-        if (($volumeName -ne "") -and ($volumeSerial -ne ""))
-        {
-            throw "Please enter an volume name or a serial number."
-        }
-        if (($arrayName -ne "") -and ($arrayId -ne ""))
-        {
-            throw "Please enter an array name or an array ID."
-        }
-        if (($null -eq $Global:pureOneRestHeader) -and ($pureOneToken -eq ""))
-        {
-            throw "No access token found in the global variable or passed in. Run the cmdlet New-PureOneRestConnection to authenticate."
-        }
-        if ($null -eq $Global:pureOneRestHeader)
-        {
-            $pureOneHeader = @{authorization="Bearer $($pureOnetoken)"}
-        }
-        elseif (($null -ne $pureOneToken) -and ($pureOneToken -ne "")) {
-            $pureOneHeader = @{authorization="Bearer $($pureOnetoken)"}
-        }
-        else {
-            $pureOneHeader = $Global:pureOneRestHeader
-        }
+      $pureOneHeader = Set-PureOneHeader -pureOneToken $pureOneToken -ErrorAction Stop
     }
     Process{
-        $restQuery = "?"
+        if ($null -ne $global:pureOneRateLimit)
+        {
+          if ($Global:pureOneRateLimit -in 1..1000)
+          {
+            $restQuery = "?limit=$($global:pureOneRateLimit)&"
+          }
+          else {
+            throw "Pure1 Rate limit set to invalid amount. Must be between 1-1000. Currently set to $($global:pureOneRateLimit)"
+          }
+        }
+        else {
+          $restQuery = "?"
+        }
         if ($volumeName -ne "")
         {
             $restQuery = $restQuery + "names=`'$($volumeName)`'"
@@ -1150,12 +1174,40 @@ function Get-PureOneVolume {
             {
                 $restQuery = $restQuery + "filter=" + ([System.Web.HttpUtility]::Urlencode("arrays[any].id")) + "=`'$($arrayId)`'"
             }
+
         }
-        $apiendpoint = "https://api.pure1.purestorage.com/api/1.latest/volumes" + $restQuery
-        $pureVolumes = Invoke-RestMethod -Method Get -Uri $apiendpoint -ContentType "application/json" -Headers $pureOneHeader     
+        $apiendpoint = "https://api.pure1.purestorage.com/api/$($global:pureOneRestVersion)/volumes" + $restQuery
+        write-debug $apiendpoint
+        $pureResponse = Invoke-RestMethod -Method Get -Uri $apiendpoint -ContentType "application/json" -Headers $pureOneHeader
+        write-debug $pureResponse
+        $pureVolumes = $pureResponse.items
+        while ($null -ne $pureResponse.continuation_token) {
+            $continuationToken = $pureResponse.continuation_token
+            $apiendpoint = "https://api.pure1.purestorage.com/api/$($global:pureOneRestVersion)/volumes" + $restQuery + "&continuation_token=`'$($continuationToken)`'"
+            write-debug $apiendpoint
+            try {
+              $pureResponse = Invoke-RestMethod -Method Get -Uri $apiendpoint -ContentType "application/json" -Headers $pureOneHeader -ErrorAction stop
+              write-debug $pureResponse
+              $pureVolumes += $pureResponse.items
+            }
+            catch {
+              if ($_.Exception -like "*The remote server returned an error: (504) Gateway Timeout.*")
+              {
+                Write-Warning -Message "The remote server returned an error: (504) Gateway Timeout. Pausing briefly and re-trying."
+                start-sleep 5
+              }
+              elseif ((convertfrom-json -inputobject $_.ErrorDetails.Message).Message -eq "API org rate limit exceeded")
+              {
+                Write-Warning -Message "Pure1 API rate limit exceeded. Sleeping briefly to reset counter."
+                start-sleep 5
+              }
+              continue
+            }
+        }     
+          
     }
     End{
-        return $pureVolumes.items
+        return $pureVolumes
     }
 }
 function Get-PureOnePod {
@@ -1168,11 +1220,27 @@ function Get-PureOnePod {
       None required. Optional inputs are pod name, array name or ID, and Pure1 access token.
     .OUTPUTS
       Returns the Pure Storage pod information in Pure1.
+    .EXAMPLE
+      PS C:\ Get-PureOnePod
+
+      Returns all pods on all FlashArrays
+    .EXAMPLE
+      PS C:\ Get-PureOnePod -arrayId 2dcf29ad-6aca-4913-b62e-a15875c6635f
+
+      Returns all pods on FlashArray with specified ID
+    .EXAMPLE
+      PS C:\ Get-PureOnePod -podName newpod 
+
+      Returns all pods with the specified name
+    .EXAMPLE
+      PS C:\ Get-PureOnePod -podName newpod -arrayName sn1-m20-c12-25
+
+      Returns the pod with the specified name on the specified FlashArray
     .NOTES
-      Version:        1.0
+      Version:        1.1
       Author:         Cody Hosterman https://codyhosterman.com
-      Creation Date:  01/18/2019
-      Purpose/Change: Initial script development
+      Creation Date:  04/27/2020
+      Purpose/Change: Parameter sets and examples added
   
     *******Disclaimer:******************************************************
     This scripts are offered "as is" with no warranty.  While this 
@@ -1183,25 +1251,23 @@ function Get-PureOnePod {
     ************************************************************************
     #>
 
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName='Pod')]
     Param(
-            [Parameter(Position=0)]
+            [Parameter(Position=0,ParameterSetName='ArrayName')]
+            [Parameter(Position=0,ParameterSetName='Pod')]
             [string]$arrayName,
             
-            [Parameter(Position=1)]
+            [Parameter(Position=1,ParameterSetName='ArrayId')]
+            [Parameter(Position=1,ParameterSetName='Pod')]
             [string]$arrayId,
 
-            [Parameter(Position=2)]
+            [Parameter(Position=2,ParameterSetName='Pod')]
             [string]$podName,
 
             [Parameter(Position=3)]
             [string]$pureOneToken
     )
     Begin{
-        if (($arrayName -ne "") -and ($arrayId -ne ""))
-        {
-            throw "Please enter an array name or an array ID."
-        }
         if (($null -eq $Global:pureOneRestHeader) -and ($pureOneToken -eq ""))
         {
             throw "No access token found in the global variable or passed in. Run the cmdlet New-PureOneRestConnection to authenticate."
@@ -1252,11 +1318,27 @@ function Get-PureOneVolumeSnapshot {
       None required. Optional inputs are array type, array name, volume name, snapshot name or snapshot serial, or Pure1 access token.
     .OUTPUTS
       Returns the Pure Storage array information in Pure1.
+    .EXAMPLE
+      PS C:\ Get-PureOneVolumeSnapshot
+
+      Returns all snapshots on all FlashArrays
+    .EXAMPLE
+      PS C:\ Get-PureOneVolumeSnapshot -arrayName flasharray-m50-2
+
+      Returns all snapshots on the specified array
+    .EXAMPLE
+      PS C:\ Get-PureOneVolumeSnapshot -snapshotName db-001.test
+
+      Returns the snapshots with the specified name
+    .EXAMPLE
+      PS C:\ Get-PureOneVolumeSnapshot -volumeName sql00-Backup02
+
+      Returns all snapshots for the specified volume 
     .NOTES
-      Version:        1.0
+      Version:        1.1
       Author:         Cody Hosterman https://codyhosterman.com
-      Creation Date:  01/21/2019
-      Purpose/Change: Initial script development
+      Creation Date:  04/29/2020
+      Purpose/Change: Parameter sets and examples added
   
     *******Disclaimer:******************************************************
     This scripts are offered "as is" with no warranty.  While this 
@@ -1267,52 +1349,43 @@ function Get-PureOneVolumeSnapshot {
     ************************************************************************
     #>
 
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName='SnapshotName')]
     Param(
-            [Parameter(Position=0)]
+            [Parameter(Position=0,ParameterSetName='ArrayName')]
             [string]$arrayName,
             
-            [Parameter(Position=1)]
+            [Parameter(Position=1,ParameterSetName='ArrayID')]
             [string]$arrayId,
 
-            [Parameter(Position=2)]
+            [Parameter(Position=2,ParameterSetName='SnapshotName')]
             [string]$snapshotName,
 
-            [Parameter(Position=3)]
+            [Parameter(Position=3,ParameterSetName='SnapshotSerial')]
             [string]$snapshotSerial,
 
-            [Parameter(Position=4)]
+            [Parameter(Position=4,ParameterSetName='VolumeName')]
             [string]$volumeName,
 
             [Parameter(Position=5)]
             [string]$pureOneToken
     )
     Begin{
-        if (($snapshotName -ne "") -and ($snapshotSerial -ne ""))
-        {
-            throw "Please only enter a volume name or a serial number."
-        }
-        if (($arrayName -ne "") -and ($arrayId -ne ""))
-        {
-            throw "Please only enter an array name or an array ID."
-        }
-        if (($null -eq $Global:pureOneRestHeader) -and ($pureOneToken -eq ""))
-        {
-            throw "No access token found in the global variable or passed in. Run the cmdlet New-PureOneRestConnection to authenticate."
-        }
-        if ($null -eq $Global:pureOneRestHeader)
-        {
-            $pureOneHeader = @{authorization="Bearer $($pureOnetoken)"}
-        }
-        elseif (($null -ne $pureOneToken) -and ($pureOneToken -ne "")) {
-            $pureOneHeader = @{authorization="Bearer $($pureOnetoken)"}
-        }
-        else {
-            $pureOneHeader = $Global:pureOneRestHeader
-        }
+      $pureOneHeader = Set-PureOneHeader -pureOneToken $pureOneToken -ErrorAction Stop
     }
     Process{
-        $restQuery = "?"
+      if ($null -ne $global:pureOneRateLimit)
+      {
+        if ($Global:pureOneRateLimit -in 1..1000)
+        {
+          $restQuery = "?limit=$($global:pureOneRateLimit)&"
+        }
+        else {
+          throw "Pure1 Rate limit set to invalid amount. Must be between 1-1000. Currently set to $($global:pureOneRateLimit)"
+        }
+      }
+      else {
+        $restQuery = "?limit=500&"
+      }
         if ($snapshotName -ne "")
         {
             $restQuery = $restQuery + "names=`'$($snapshotName)`'"
@@ -1345,16 +1418,41 @@ function Get-PureOneVolumeSnapshot {
                 $restQuery = $restQuery + "filter=" + ([System.Web.HttpUtility]::Urlencode("arrays[any].id")) + "=`'$($arrayId)`'"
             }
         }
-        $apiendpoint = "https://api.pure1.purestorage.com/api/1.0/volume-snapshots" + $restQuery
-        $pureVolumes = Invoke-RestMethod -Method Get -Uri $apiendpoint -ContentType "application/json" -Headers $pureOneHeader   
-        $pureVolumes = $pureVolumes.items  
         if ($volumeName -ne "")
         {
-            $pureVolumes = $pureVolumes |Where-Object {$_.source.name -eq $volumeName}
+            $restQuery = $restQuery + "filter=" + ([System.Web.HttpUtility]::Urlencode("source.name")) + "=`'$($volumeName)`'"
         }
+        $apiendpoint = "https://api.pure1.purestorage.com/api/$($global:pureOneRestVersion)/volume-snapshots" + $restQuery
+        Write-Debug $apiendpoint
+        $pureResponse = Invoke-RestMethod -Method Get -Uri $apiendpoint -ContentType "application/json" -Headers $pureOneHeader -ErrorAction Stop
+        Write-Debug $pureResponse
+        $pureSnaps = $pureResponse.items
+        while ($null -ne $pureResponse.continuation_token) {
+            $continuationToken = $pureResponse.continuation_token
+            $apiendpoint = "https://api.pure1.purestorage.com/api/$($global:pureOneRestVersion)/volume-snapshots" + $restQuery + "&continuation_token=`'$($continuationToken)`'"
+            Write-Debug $apiendpoint
+            try {
+              $pureResponse = Invoke-RestMethod -Method Get -Uri $apiendpoint -ContentType "application/json" -Headers $pureOneHeader -ErrorAction stop
+              Write-Debug $pureResponse
+              $pureSnaps += $pureResponse.items
+            }
+            catch {
+              if ($_.Exception -like "*The remote server returned an error: (504) Gateway Timeout.*")
+              {
+                Write-Warning -Message "The remote server returned an error: (504) Gateway Timeout. Pausing briefly and re-trying."
+                start-sleep 5
+              }
+              elseif ((convertfrom-json -inputobject $_.ErrorDetails.Message).Message -eq "API org rate limit exceeded")
+              {
+                Write-Warning -Message "Pure1 API rate limit exceeded. Sleeping briefly to reset counter."
+                start-sleep 5
+              }
+              continue
+            }
+        }   
     }
     End{
-        return $pureVolumes
+        return $pureSnaps
     }
 }
 function Get-PureOneFileSystem {
@@ -1367,6 +1465,26 @@ function Get-PureOneFileSystem {
       None required. Optional inputs are array type, array name, file system name, or Pure1 access token.
     .OUTPUTS
       Returns the Pure Storage array information in Pure1.
+    .EXAMPLE
+      PS C:\ Get-PureOneFileSystem
+      
+      Return all FlashBlade file systems (NFS, SMB, S3)
+    .EXAMPLE
+      PS C:\ Get-PureOneFileSystem
+      
+      Return all FlashBlade file systems (NFS, SMB, S3)
+    .EXAMPLE
+      PS C:\ Get-PureOneFileSystem -fsName fs20
+      
+      Return the specified FlashBlade file system (NFS, SMB, S3)
+    .EXAMPLE
+      PS C:\ Get-PureOneFileSystem -arrayName sn1-fb-c02-33
+      
+      Return all FlashBlade file systems on specified array (NFS, SMB, S3)
+    .EXAMPLE
+      PS C:\ Get-PureOneFileSystem -arrayId 0e30e967-d749-4e03-9d32-701eeff14376
+      
+      Return all FlashBlade file systems on specified array(NFS, SMB, S3)
     .NOTES
       Version:        1.0
       Author:         Cody Hosterman https://codyhosterman.com
@@ -1382,39 +1500,22 @@ function Get-PureOneFileSystem {
     ************************************************************************
     #>
 
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName='FileSystem')]
     Param(
-            [Parameter(Position=0)]
+            [Parameter(Position=0,ParameterSetName='ArrayName')]
             [string]$arrayName,
             
-            [Parameter(Position=1)]
+            [Parameter(Position=1,ParameterSetName='ArrayID')]
             [string]$arrayId,
 
-            [Parameter(Position=2)]
+            [Parameter(Position=2,ParameterSetName='FileSystem')]
             [string]$fsName,
 
             [Parameter(Position=3)]
             [string]$pureOneToken
     )
     Begin{
-        if (($arrayName -ne "") -and ($arrayId -ne ""))
-        {
-            throw "Please enter an array name or an array ID."
-        }
-        if (($null -eq $Global:pureOneRestHeader) -and ($pureOneToken -eq ""))
-        {
-            throw "No access token found in the global variable or passed in. Run the cmdlet New-PureOneRestConnection to authenticate."
-        }
-        if ($null -eq $Global:pureOneRestHeader)
-        {
-            $pureOneHeader = @{authorization="Bearer $($pureOnetoken)"}
-        }
-        elseif (($null -ne $pureOneToken) -and ($pureOneToken -ne "")) {
-            $pureOneHeader = @{authorization="Bearer $($pureOnetoken)"}
-        }
-        else {
-            $pureOneHeader = $Global:pureOneRestHeader
-        }
+        $pureOneHeader = Set-PureOneHeader -pureOneToken $pureOneToken -ErrorAction Stop
     }
     Process{
         $restQuery = "?"
@@ -1434,11 +1535,37 @@ function Get-PureOneFileSystem {
         {
             $restQuery = $restQuery + "filter=" + ([System.Web.HttpUtility]::Urlencode("arrays[any].id")) + "=`'$($arrayId)`'"
         }
-        $apiendpoint = "https://api.pure1.purestorage.com/api/1.0/file-systems" + $restQuery
-        $pureFileSystems = Invoke-RestMethod -Method Get -Uri $apiendpoint -ContentType "application/json" -Headers $pureOneHeader     
+        $apiendpoint = "https://api.pure1.purestorage.com/api/$($global:pureOneRestVersion)/file-systems" + $restQuery
+        write-debug $apiendpoint
+        $pureResponse = Invoke-RestMethod -Method Get -Uri $apiendpoint -ContentType "application/json" -Headers $pureOneHeader
+        write-debug $pureResponse
+        $pureFileSystems = $pureResponse.items
+        while ($null -ne $pureResponse.continuation_token) {
+            $continuationToken = $pureResponse.continuation_token
+            try {
+              $apiendpoint = "https://api.pure1.purestorage.com/api/$($global:pureOneRestVersion)/file-systems" + $restQuery + "&continuation_token=`'$($continuationToken)`'"
+              write-debug $apiendpoint
+              $pureResponse = Invoke-RestMethod -Method Get -Uri $apiendpoint -ContentType "application/json" -Headers $pureOneHeader
+              write-debug $pureResponse
+              $pureFileSystems += $pureResponse.items
+            }
+            catch {
+              if ($_.Exception -like "*The remote server returned an error: (504) Gateway Timeout.*")
+              {
+                Write-Warning -Message "The remote server returned an error: (504) Gateway Timeout. Pausing briefly and re-trying."
+                start-sleep 5
+              }
+              elseif ((convertfrom-json -inputobject $_.ErrorDetails.Message).Message -eq "API org rate limit exceeded")
+              {
+                Write-Warning -Message "Pure1 API rate limit exceeded. Sleeping briefly to reset counter."
+                start-sleep 5
+              }
+              continue
+            } 
+        }        
     }
     End{
-        return $pureFileSystems.items
+        return $pureFileSystems
     }
 }
 function Get-PureOneFileSystemSnapshot {
@@ -1451,11 +1578,27 @@ function Get-PureOneFileSystemSnapshot {
       None required. Optional inputs are array name, file system name, snapshot name, or Pure1 access token.
     .OUTPUTS
       Returns the Pure Storage file system(s) information in Pure1.
+    .EXAMPLE
+      PS C:\ Get-PureOneFileSystemSnapshot
+
+      Returns all file system snapshots on all FlashBlades
+    .EXAMPLE
+      PS C:\ Get-PureOneFileSystemSnapshot -arrayName sn1-fb-c02-33
+
+      Returns all file system snapshots on specified FlashBlade
+    .EXAMPLE
+      PS C:\ Get-PureOneFileSystemSnapshot -snapshotName nbu-msdp-metadata.2020_04_30_00_00
+
+      Returns the specified file system snapshot
+    .EXAMPLE
+      PS C:\ Get-PureOneFileSystemSnapshot -fsName nbu-msdp-metadata
+
+      Returns all snapshots for the specified file system 
     .NOTES
-      Version:        1.0
+      Version:        1.1
       Author:         Cody Hosterman https://codyhosterman.com
-      Creation Date:  01/21/2019
-      Purpose/Change: Initial script development
+      Creation Date:  04/30/2020
+      Purpose/Change: Parameter sets and examples added
   
     *******Disclaimer:******************************************************
     This scripts are offered "as is" with no warranty.  While this 
@@ -1466,42 +1609,25 @@ function Get-PureOneFileSystemSnapshot {
     ************************************************************************
     #>
 
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName='FileSystemName')]
     Param(
-            [Parameter(Position=0)]
+            [Parameter(Position=0,ParameterSetName='ArrayName')]
             [string]$arrayName,
             
-            [Parameter(Position=1)]
+            [Parameter(Position=1,ParameterSetName='ArrayID')]
             [string]$arrayId,
 
-            [Parameter(Position=2)]
+            [Parameter(Position=2,ParameterSetName='SnapshotName')]
             [string]$snapshotName,
 
-            [Parameter(Position=4)]
+            [Parameter(Position=3,ParameterSetName='FileSystemName')]
             [string]$fsName,
 
-            [Parameter(Position=5)]
+            [Parameter(Position=4)]
             [string]$pureOneToken
     )
     Begin{
-        if (($arrayName -ne "") -and ($arrayId -ne ""))
-        {
-            throw "Please only enter an array name or an array ID."
-        }
-        if (($null -eq $Global:pureOneRestHeader) -and ($pureOneToken -eq ""))
-        {
-            throw "No access token found in the global variable or passed in. Run the cmdlet New-PureOneRestConnection to authenticate."
-        }
-        if ($null -eq $Global:pureOneRestHeader)
-        {
-            $pureOneHeader = @{authorization="Bearer $($pureOnetoken)"}
-        }
-        elseif (($null -ne $pureOneToken) -and ($pureOneToken -ne "")) {
-            $pureOneHeader = @{authorization="Bearer $($pureOnetoken)"}
-        }
-        else {
-            $pureOneHeader = $Global:pureOneRestHeader
-        }
+      $pureOneHeader = Set-PureOneHeader -pureOneToken $pureOneToken -ErrorAction Stop
     }
     Process{
         $restQuery = "?"
@@ -1521,17 +1647,23 @@ function Get-PureOneFileSystemSnapshot {
         {
             $restQuery = $restQuery + "filter=" + ([System.Web.HttpUtility]::Urlencode("arrays[any].id")) + "=`'$($arrayId)`'"
         }
-        $apiendpoint = "https://api.pure1.purestorage.com/api/1.0/file-system-snapshots" + $restQuery
-        $pureSnapshots = Invoke-RestMethod -Method Get -Uri $apiendpoint -ContentType "application/json" -Headers $pureOneHeader   
-        $pureSnapshots = $pureSnapshots.items  
         if ($fsName -ne "")
         {
-            $pureSnapshots = $pureSnapshots |Where-Object {$_.source.name -eq $fsName}
+            $restQuery = $restQuery + "filter=" + ([System.Web.HttpUtility]::Urlencode("source.name")) + "=`'$($fsName)`'"
         }
-    }
-    End{
-        return $pureSnapshots
-    }
+        $apiendpoint = "https://api.pure1.purestorage.com/api/$($global:pureOneRestVersion)/file-system-snapshots" + $restQuery
+        $pureResponse = Invoke-RestMethod -Method Get -Uri $apiendpoint -ContentType "application/json" -Headers $pureOneHeader   
+        $pureSnapshots = $pureResponse.items
+        while ($null -ne $pureResponse.continuation_token) {
+            $continuationToken = $pureResponse.continuation_token
+            $apiendpoint = "https://api.pure1.purestorage.com/api/$($global:pureOneRestVersion)/file-system-snapshots" + $restQuery + "&continuation_token=`'$($continuationToken)`'"
+            $pureResponse = Invoke-RestMethod -Method Get -Uri $apiendpoint -ContentType "application/json" -Headers $pureOneHeader
+            $pureSnapshots += $pureResponse.items
+      }
+  }
+  End{
+    return $pureSnapshots
+}
 }
 function Get-PureOneArrayBusyMeter {
     <#
@@ -1543,11 +1675,27 @@ function Get-PureOneArrayBusyMeter {
       Required: resource names or IDs--must be an array. Optional: timeframe, granularity, and aggregation type (if none entered defaults will be used based on metric entered). Also optionally an access token.
     .OUTPUTS
       Returns the Pure Storage busy meter metric information in Pure1.
+    .EXAMPLE
+      PS C:\ Get-PureOneArrayBusyMeter -objectName flasharray-m50-1
+
+      Returns the busy meter at default resolution for all available time, for the specified array.
+    .EXAMPLE
+      PS C:\ Get-PureOneArrayBusyMeter -objectName flasharray-m50-1 -startTime (get-date).AddDays(-10)
+
+      Returns the busy meter at default resolution for the past ten days, for the specified array.
+    .EXAMPLE
+      PS C:\ Get-PureOneArrayBusyMeter -objectName flasharray-m50-1 -startTime (get-date).AddDays(-2) -endTime (get-date).AddDays(-1)
+
+      Returns the busy meter at default resolution for one day ending 24 hours ago, for the specified array.
+    .EXAMPLE
+      PS C:\ Get-PureOneArrayBusyMeter -objectName flasharray-m50-1 -startTime (get-date).AddDays(-1) -startTime (get-date).AddDays(-1) -granularity 86400000 -maximum
+
+      Returns one value for the previous 24 hours, representing the maximum busyness value for the specified array in that window.
     .NOTES
-      Version:        1.1
+      Version:        1.2
       Author:         Cody Hosterman https://codyhosterman.com
-      Creation Date:  06/07/2019
-      Purpose/Change: Initial script development
+      Creation Date:  04/30/2020
+      Purpose/Change: Parameter sets and examples added
   
     *******Disclaimer:******************************************************
     This scripts are offered "as is" with no warranty.  While this 
@@ -1557,18 +1705,24 @@ function Get-PureOneArrayBusyMeter {
     will not be liable for any damage or loss to the system.
     ************************************************************************
     #>
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName='objectName')]
     Param(
-            [Parameter(Position=0)]
+            [Parameter(Position=0,mandatory=$True,ParameterSetName='objectName')]
+            [Parameter(Position=0,mandatory=$True,ParameterSetName='objectNameAVG')]
+            [Parameter(Position=0,mandatory=$True,ParameterSetName='objectNameMAX')]
             [string[]]$objectName,
          
-            [Parameter(Position=1)]
+            [Parameter(Position=1,mandatory=$True,ParameterSetName='objectID')]
+            [Parameter(Position=1,mandatory=$True,ParameterSetName='objectIDAVG')]
+            [Parameter(Position=1,mandatory=$True,ParameterSetName='objectIDMAX')]
             [string[]]$objectId,
 
-            [Parameter(Position=2)]
+            [Parameter(Position=2,mandatory=$True,ParameterSetName='objectNameAVG')]
+            [Parameter(Position=2,mandatory=$True,ParameterSetName='objectIDAVG')]
             [switch]$average,
 
-            [Parameter(Position=3)]
+            [Parameter(Position=2,mandatory=$True,ParameterSetName='objectNameMAX')]
+            [Parameter(Position=2,mandatory=$True,ParameterSetName='objectIDMAX')]
             [switch]$maximum,
 
             [Parameter(Position=5)]
@@ -1585,45 +1739,19 @@ function Get-PureOneArrayBusyMeter {
     )
     Begin{
         $metricName = "array_total_load"
-        if ($null -eq $objectName)
-        {
-            $objectName = ""
-        }
-        if ($null -eq $objectId)
-        {
-            $objectId = ""
-        }
-        if (($average -eq $true) -and ($maximum -eq $true))
-        {
-            throw "Please only choose average or maximum, not both."
-        }
-        elseif (($average -eq $false) -and ($maximum -eq $false)) 
+        if (($average -eq $false) -and ($maximum -eq $false)) 
         {
             #defaulting to average if neither option is entered
             $average = $true
         }
-        if (($objectName -eq "") -and ($objectId -eq ""))
+        if (($null -ne $startTime) -and ($null -ne $endTime))
         {
-            throw "Please enter an object name or ID."
+          if ($startTime -ge $endTime)
+          {
+            throw "The specified start time $($startTime) cannot be the same or later than the specified end time $($endTime)"
+          }
         }
-        elseif (($objectName -ne "") -and ($objectId -ne ""))
-        {
-            throw "Please only enter an object name or an ID."
-        }
-        if (($null -eq $Global:pureOneRestHeader) -and ($pureOneToken -eq ""))
-        {
-            throw "No access token found in the global variable or passed in. Run the cmdlet New-PureOneRestConnection to authenticate."
-        }
-        if ($null -eq $Global:pureOneRestHeader)
-        {
-            $pureOneHeader = @{authorization="Bearer $($pureOnetoken)"}
-        }
-        elseif (($null -ne $pureOneToken) -and ($pureOneToken -ne "")) {
-            $pureOneHeader = @{authorization="Bearer $($pureOnetoken)"}
-        }
-        else {
-            $pureOneHeader = $Global:pureOneRestHeader
-        }
+        $pureOneHeader = Set-PureOneHeader -pureOneToken $pureOneToken -ErrorAction Stop
     }
     Process{
         #get metric rules
@@ -1702,7 +1830,7 @@ function Get-PureOneArrayBusyMeter {
             }
         }
         
-        $apiendpoint = "https://api.pure1.purestorage.com/api/1.0/metrics/history" + $restQuery
+        $apiendpoint = "https://api.pure1.purestorage.com/api/1.latest/metrics/history" + $restQuery
         $pureOneMetrics = Invoke-RestMethod -Method Get -Uri $apiendpoint -ContentType "application/json" -Headers $pureOneHeader 
     }
     End{
@@ -1710,3 +1838,32 @@ function Get-PureOneArrayBusyMeter {
     }
 }
 
+#internal functions
+
+function Set-PureOneHeader
+{
+  [CmdletBinding()]
+  Param(
+          [Parameter(Position=0)]
+          [string]$pureOneToken
+  )
+  if (($null -eq $Global:pureOneRestHeader) -and ($pureOneToken -eq ""))
+        {
+            throw "No access token found in the global variable or passed in. Run the cmdlet New-PureOneRestConnection to authenticate."
+        }
+        if ($null -eq $Global:pureOneRestHeader)
+        {
+            $pureOneHeader = @{authorization="Bearer $($pureOnetoken)"}
+        }
+        elseif (($null -ne $pureOneToken) -and ($pureOneToken -ne "")) {
+            $pureOneHeader = @{authorization="Bearer $($pureOnetoken)"}
+        }
+        else {
+            $pureOneHeader = $Global:pureOneRestHeader
+        }
+        return $pureOneHeader
+}
+
+#Global variables
+$global:pureOneRateLimit = $null
+$global:pureOneRestVersion = "1.latest"
