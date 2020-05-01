@@ -62,8 +62,8 @@ https://www.codyhosterman.com/2019/12/pure1-rest-api-authentication-made-easy/
 <p>Use either get-help or get-command to see the details:</p>
 <!-- /wp:paragraph -->
 
-<!-- wp:image {"id":6205,"sizeSlug":"large"} -->
-<figure class="wp-block-image size-large"><img src="https://www.codyhosterman.com/wp-content/uploads/2019/12/image-16.png" alt="" class="wp-image-6205"/></figure>
+<!-- wp:image {"id":6579,"sizeSlug":"large"} -->
+<figure class="wp-block-image size-large"><img src="https://www.codyhosterman.com/wp-content/uploads/2020/04/image-27-1024x532.png" alt="" class="wp-image-6579"/></figure>
 <!-- /wp:image -->
 
 <!-- wp:image {"id":6209,"sizeSlug":"large"} -->
