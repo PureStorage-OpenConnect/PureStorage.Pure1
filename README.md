@@ -83,15 +83,35 @@ https://www.codyhosterman.com/2019/12/pure1-rest-api-authentication-made-easy/
 <!-- /wp:list -->
 
 <!-- wp:heading -->
-<h2>Latest version 1.0.0.1 (December 3rd, 2019)</h2>
+<h2>Latest version 1.0.1.1 (April 30th, 2020)</h2>
 <!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>See  version details: <a href="https://github.com/PureStorage-OpenConnect/PureStorage.Pure1/projects/1">https://github.com/PureStorage-OpenConnect/PureStorage.Pure1/projects/1</a></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph -->
+<p><strong>New features:</strong></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:list -->
+<ul><li>Continuation Token Support</li><li>-Debug support</li><li>Handle exceeding rate limits</li><li>Get-Help examples</li><li>Support for varied REST versions in global parameter $Global:PureOneRestVersion</li><li>Support for customer query result limits in global parameter $Global:PureOneRateLimit</li><li>Various internal improvements</li></ul>
+<!-- /wp:list -->
+
+<!-- wp:paragraph -->
+<p><strong>Bug Fixes:</strong></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:list -->
+<ul><li>Get-PureOneVolumeSnapshot fails at scale</li><li>Volume filter didn't work for Get-PureOneVolumeSnapshot</li><li>No Parameter sets/mandatory parameters</li><li>Defaulting to REST 1.0 only</li></ul>
+<!-- /wp:list -->
 
 <!-- wp:paragraph -->
 <p>Cmdlets:</p>
 <!-- /wp:paragraph -->
 
 <!-- wp:list -->
-<ul><li>New-PureOneCertificate</li><li>Get-PureOnePublicKey</li><li>New-PureOneJwt</li><li>New-PureOneRestConnection </li><li>Get-PureOneArray </li><li>New-PureOneRestOperation </li><li>Get-PureOneArrayTag </li><li>Set-PureOneArrayTag </li><li>Remove-PureOneArrayTag </li><li>Get-PureOneArrayNetworking </li><li>Get-PureOneMetricDetail </li><li>Get-PureOneMetric </li><li>Get-PureOneVolume </li><li>Get-PureOnePod </li><li>Get-PureOneVolumeSnapshot </li><li>Get-PureOneFileSystem </li><li>Get-PureOneFileSystemSnapshot </li><li>Get-PureOneArrayBusyMeter</li></ul>
+<ul><li>New-PureOneCertificate</li><li>Get-PureOnePublicKey</li><li>New-PureOneJwt</li><li>New-PureOneRestConnection </li><li>Get-PureOneArrays </li><li>New-PureOneRestOperation </li><li>Get-PureOneArrayTags </li><li>Set-PureOneArrayTags </li><li>Remove-PureOneArrayTags </li><li>Get-PureOneArrayNetworking </li><li>Get-PureOneMetricDetails </li><li>Get-PureOneMetrics </li><li>Get-PureOneVolumes </li><li>Get-PureOnePods </li><li>Get-PureOneVolumeSnapshots </li><li>Get-PureOneFileSystems </li><li>Get-PureOneFileSystemSnapshots </li><li>Get-PureOneArrayBusyMeter</li></ul>
 <!-- /wp:list -->
 
 <!-- wp:paragraph -->
