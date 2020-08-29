@@ -30,7 +30,7 @@
 	RootModule = 'PureStorage.Pure1.psm1'
 	
 	# Version number of this module; major.minor[.build[.revision]]
-	ModuleVersion = '1.0.1.0'
+	ModuleVersion = '1.1.0.0'
 	
 	# ID used to uniquely identify this module
 	GUID = '65867a33-8c09-4651-8043-96c2f7ca2893'
@@ -45,7 +45,7 @@
 	Copyright = '(c) 2020 Pure Storage, Inc. All rights reserved.'
 	
 	# Description of the functionality provided by this module
-	Description = 'Pure Storage Pure1 REST API integration with Windows PowerShell.'
+	Description = 'Pure Storage Pure1 REST API integration with PowerShell.'
 	
 	# Minimum version of the Windows PowerShell engine required by this module
 	PowerShellVersion = '5.1'
@@ -66,9 +66,7 @@
 	#ProcessorArchitecture = 'X86'
 	
 	# Modules that must be imported into the global environment prior to importing this module
-	RequiredModules = @(
-        #@{"ModuleName"="PureStoragePowerShellSDK";"ModuleVersion"="1.13.1.12"}
-    )
+	RequiredModules = @()
 	
 	# Assemblies that must be loaded prior to importing this module
 	RequiredAssemblies = @()

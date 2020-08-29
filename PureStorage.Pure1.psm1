@@ -19,8 +19,8 @@ function New-PureOneCertificate {
     .NOTES
       Version:        1.1
       Author:         Cody Hosterman https://codyhosterman.com
-      Creation Date:  12/08/2019
-      Purpose/Change: Added 2012 r2 support
+      Creation Date:  08/29/2020
+      Purpose/Change: Core support
   
     *******Disclaimer:******************************************************
     This scripts are offered "as is" with no warranty.  While this 
@@ -70,10 +70,10 @@ function Get-PureOnePublicKey {
 
       Returns the PEM formatted Public Key of the certificate passed in so that it can be entered in Pure1.
     .NOTES
-      Version:        1.0
+      Version:        1.1
       Author:         Cody Hosterman https://codyhosterman.com
-      Creation Date:  12/02/2019
-      Purpose/Change: Initial script development
+      Creation Date:  08/29/2020
+      Purpose/Change: Core support
   
     *******Disclaimer:******************************************************
     This scripts are offered "as is" with no warranty.  While this 
@@ -113,10 +113,10 @@ function New-PureOneJwt {
 
         Returns a JSON Web Token that can be used to create a Pure1 REST session. An expiration was set for two days for now, so this JWT will be valid to create new REST sessions for 48 hours.
     .NOTES
-      Version:        1.0
+      Version:        1.1
       Author:         Cody Hosterman https://codyhosterman.com
-      Creation Date:  12/02/2019
-      Purpose/Change: Initial script development
+      Creation Date:  08/29/2020
+      Purpose/Change: Core support
   
     *******Disclaimer:******************************************************
     This scripts are offered "as is" with no warranty.  While this 
@@ -210,20 +210,20 @@ function New-PureOneConnection {
       Does not return anything--it stores the Pure1 REST access token in a global variable called $Global:DefaultPureOneConnection. Valid for 10 hours.
     .EXAMPLE
       PS C:\ $cert = New-PureOneCertificate
-      PS C:\ $cert | New-PureOneRestConnection -pureAppID pure1:apikey:PZogg67LcjImYTiI
+      PS C:\ $cert | New-PureOneConnection -pureAppID pure1:apikey:PZogg67LcjImYTiI
 
       Create a Pure1 REST connection using a passed in certificate and the specified Pure1 App ID
     .EXAMPLE
       PS C:\ $cert = New-PureOneCertificate
       PS C:\ $privateKey = [System.Security.Cryptography.X509Certificates.RSACertificateExtensions]::GetRSAPrivateKey($cert)
-      PS C:\ $privateKey | New-PureOneRestConnection -pureAppID pure1:apikey:PZogg67LcjImYTiI
+      PS C:\ $privateKey | New-PureOneConnection -pureAppID pure1:apikey:PZogg67LcjImYTiI
 
       Create a Pure1 REST connection using a passed in private key and the specified Pure1 App ID
     .NOTES
-      Version:        1.2
+      Version:        1.1
       Author:         Cody Hosterman https://codyhosterman.com
-      Creation Date:  04/26/2020
-      Purpose/Change: Parameter sets/examples
+      Creation Date:  08/29/2020
+      Purpose/Change: Core support
   
     *******Disclaimer:******************************************************
     This scripts are offered "as is" with no warranty.  While this 
@@ -244,7 +244,10 @@ function New-PureOneConnection {
             [string]$pureAppID,
             
             [Parameter(Position=2,ValueFromPipeline=$True,mandatory=$True,ParameterSetName='PrivateKey')]
-            [System.Security.Cryptography.RSA]$privateKey
+            [System.Security.Cryptography.RSA]$privateKey,
+
+            [Parameter(Position=3)]
+            [switch]$returnOrg
     )
     if ($null -eq $certificate)
     {
@@ -265,16 +268,16 @@ function New-PureOneConnection {
     $date = get-date "1/1/1970"
     $date = $date.AddSeconds($orgInfo.exp).ToLocalTime()
     $newOrg = [PureOneOrganization]::new($orgInfo.org,$pureOnetoken.access_token, $PureAppID, $orgInfo.max_role, $date, $certificate)
-    if ($null -eq $Global:DefaultPureOneConnection)
+    if ($Global:PureOneConnections.Count -eq 0)
     {
-      $Global:DefaultPureOneConnection = $newOrg
-      $Global:PureOneConnections = @()
+      $Global:PureOneConnections += $newOrg
+      $Global:PureOneConnections[0].SetDefault($true)
     }
     else 
     {
       foreach ($connection in $Global:PureOneConnections) 
       {
-        if ($connection.PureOneOrgID -eq $newOrg.org)
+        if ($connection.PureOneOrgID -eq $newOrg.PureOneOrgID)
           {
             if ($connection.updateLock -eq $false)
             {
@@ -286,10 +289,14 @@ function New-PureOneConnection {
             }
           }
         }
+      if ($pureOneUpdate -ne $true)
+      {
+        $Global:PureOneConnections += $newOrg
+      }
     }
-    if ($pureOneUpdate -ne $true)
+    if ($returnOrg -eq $true)
     {
-      $Global:PureOneConnections += $newOrg
+      return $newOrg
     }
 }
 function New-PureOneOperation {
@@ -304,21 +311,21 @@ function New-PureOneOperation {
     Returns Pure1 REST response.
   .EXAMPLE
     PS C:\ $cert = New-PureOneCertificate
-    PS C:\ $cert | New-PureOneRestConnection -pureAppID pure1:apikey:PZogg67LcjImYTiI
+    PS C:\ $cert | New-PureOneConnection -pureAppID pure1:apikey:PZogg67LcjImYTiI
     PS C:\ New-PureOneOperation -resourceType volumes -restOperationType GET
 
     Create a Pure1 REST connection and requests all volumes
   .EXAMPLE
     PS C:\ $cert = New-PureOneCertificate
-    PS C:\ $cert | New-PureOneRestConnection -pureAppID pure1:apikey:PZogg67LcjImYTiI
+    PS C:\ $cert | New-PureOneConnection -pureAppID pure1:apikey:PZogg67LcjImYTiI
     PS C:\ New-PureOneOperation -resourceType arrays -restOperationType GET
 
     Create a Pure1 REST connection and requests all arrays
   .NOTES
-    Version:        1.1
-    Author:         Cody Hosterman https://codyhosterman.com
-    Creation Date:  04/26/2020
-    Purpose/Change: Added continuation token support
+      Version:        1.1
+      Author:         Cody Hosterman https://codyhosterman.com
+      Creation Date:  08/29/2020
+      Purpose/Change: Core support
 
   *******Disclaimer:******************************************************
   This scripts are offered "as is" with no warranty.  While this 
@@ -404,11 +411,11 @@ function Get-PureOneArray {
     .EXAMPLE
       PS C:\ Get-PureOneArray
 
-      Returns all arrays in Pure1 organization
+      Returns all arrays in all connected Pure1 organizations
     .EXAMPLE
       PS C:\ Get-PureOneArray -arrayProduct FlashBlade
 
-      Returns all FlashBlades in Pure1 organization
+      Returns all FlashBlades in all connected Pure1 organizations
     .EXAMPLE
       PS C:\ Get-PureOneArray -arrayId ef9d6965-7e16-4d46-9425-d2fea48a8fe5
 
@@ -420,8 +427,8 @@ function Get-PureOneArray {
     .NOTES
       Version:        1.1
       Author:         Cody Hosterman https://codyhosterman.com
-      Creation Date:  04/26/2020
-      Purpose/Change: Parameter sets
+      Creation Date:  08/29/2020
+      Purpose/Change: Core support
   
     *******Disclaimer:******************************************************
     This scripts are offered "as is" with no warranty.  While this 
@@ -520,8 +527,8 @@ function Get-PureOneArrayTag {
     .NOTES
       Version:        1.1
       Author:         Cody Hosterman https://codyhosterman.com
-      Creation Date:  04/26/2020
-      Purpose/Change: Parameter sets added
+      Creation Date:  08/29/2020
+      Purpose/Change: Core support
   
     *******Disclaimer:******************************************************
     This scripts are offered "as is" with no warranty.  While this 
@@ -634,8 +641,8 @@ function Set-PureOneArrayTag {
     .NOTES
       Version:        1.1
       Author:         Cody Hosterman https://codyhosterman.com
-      Creation Date:  04/26/2020
-      Purpose/Change: Parameter sets added
+      Creation Date:  08/29/2020
+      Purpose/Change: Core support
   
     *******Disclaimer:******************************************************
     This scripts are offered "as is" with no warranty.  While this 
@@ -744,10 +751,10 @@ function Remove-PureOneArrayTag {
 
       Removes matching tags with key of "owner" on the arrays with specified IDs
     .NOTES
-      Version:        1.2
+      Version:        1.1
       Author:         Cody Hosterman https://codyhosterman.com
-      Creation Date:  05/1/2020
-      Purpose/Change: Parameter sets/example added
+      Creation Date:  08/29/2020
+      Purpose/Change: Core support
   
     *******Disclaimer:******************************************************
     This scripts are offered "as is" with no warranty.  While this 
@@ -846,7 +853,7 @@ function Get-PureOneArrayNetworking {
     .INPUTS
       Array name or ID and optionally access token.
     .OUTPUTS
-      Returns the Pure Storage array network information in Pure1.
+      Returns the Pure Storage array network information in all connected Pure1 organizations
     .EXAMPLE
       PS C:\ Get-PureOneArrayNetworking -arrayName sn1-m20-c08-17 
 
@@ -860,10 +867,10 @@ function Get-PureOneArrayNetworking {
 
       Returns the networking information for iscsi interfaces
     .NOTES
-      Version:        1.2
+      Version:        1.1
       Author:         Cody Hosterman https://codyhosterman.com
-      Creation Date:  05/01/2020
-      Purpose/Change: Parameter sets and examples added
+      Creation Date:  08/29/2020
+      Purpose/Change: Core support
   
     *******Disclaimer:******************************************************
     This scripts are offered "as is" with no warranty.  While this 
@@ -945,7 +952,7 @@ function Get-PureOneMetricDetail {
     .INPUTS
       Resource type or metric name and/or access token.
     .OUTPUTS
-      Returns the Pure Storage array information in Pure1.
+      Returns the Pure Storage metric details
     .EXAMPLE
       PS C:\ Get-PureOneMetricDetail
 
@@ -959,10 +966,10 @@ function Get-PureOneMetricDetail {
 
       Returns the details for the metric named pod_write_qos_rate_limit_time_us
     .NOTES
-      Version:        1.2
+      Version:        1.1
       Author:         Cody Hosterman https://codyhosterman.com
-      Creation Date:  05/01/2020
-      Purpose/Change: Parameter sets and examples added
+      Creation Date:  08/29/2020
+      Purpose/Change: Core support
   
     *******Disclaimer:******************************************************
     This scripts are offered "as is" with no warranty.  While this 
@@ -999,15 +1006,13 @@ function Get-PureOneMetricDetail {
         $tokens = @()
         if ([string]::IsNullOrWhiteSpace($pureOneToken))
         {
-          $tokens += Get-PureOneToken -pureOneOrganization $pureOneOrganization -defaultOrg
+          $tokens += Get-PureOneToken -pureOneOrganization $pureOneOrganization
         }
         else{
           $tokens += $pureOneToken
         }
         $pureOneMetrics = @()
-        foreach ($token in $tokens) {
-          $pureOneMetrics += New-PureOneOperation -resourceType "metrics" -queryFilter $objectQuery -pureOneToken $token -restOperationType GET -ErrorAction SilentlyContinue
-        }
+        $pureOneMetrics += New-PureOneOperation -resourceType "metrics" -queryFilter $objectQuery -pureOneToken $tokens[0] -restOperationType GET -ErrorAction SilentlyContinue
         return $pureOneMetrics  
 }
 function Get-PureOneMetric {
@@ -1041,10 +1046,10 @@ function Get-PureOneMetric {
 
       Returns the highest valued data point per hour (every 3,600,000 milliseconds) for the the one day a week prior for the specified metric on the target object (in this case read IOPs for the array)
     .NOTES
-      Version:        1.2
+      Version:        1.1
       Author:         Cody Hosterman https://codyhosterman.com
-      Creation Date:  05/01/2020
-      Purpose/Change: Moved to New-PureOneOperation
+      Creation Date:  08/29/2020
+      Purpose/Change: Core support
   
     *******Disclaimer:******************************************************
     This scripts are offered "as is" with no warranty.  While this 
@@ -1173,7 +1178,7 @@ function Get-PureOneVolume {
     .EXAMPLE
       PS C:\ Get-PureOneVolume 
 
-      Get all volumes on all FlashArrays.
+      Get all volumes on all FlashArrays in all connected Pure1 organizations.
     .EXAMPLE
       PS C:\ Get-PureOneVolume -arrayName sn1-x70-b05-33
 
@@ -1191,10 +1196,10 @@ function Get-PureOneVolume {
 
       Get the volume with the specified serial number.
     .NOTES
-      Version:        1.2
+      Version:        1.1
       Author:         Cody Hosterman https://codyhosterman.com
-      Creation Date:  05/01/2020
-      Purpose/Change: Moved to New-PureOneOperation
+      Creation Date:  08/29/2020
+      Purpose/Change: Core support
   
     *******Disclaimer:******************************************************
     This scripts are offered "as is" with no warranty.  While this 
@@ -1301,11 +1306,11 @@ function Get-PureOnePod {
     .INPUTS
       None required. Optional inputs are pod name, array name or ID, and Pure1 access token.
     .OUTPUTS
-      Returns the Pure Storage pod information in Pure1.
+      Returns the Pure Storage pod information in all connected Pure1 organizations.
     .EXAMPLE
       PS C:\ Get-PureOnePod
 
-      Returns all pods on all FlashArrays
+      Returns all pods on all FlashArrays in all connected Pure1 organizations
     .EXAMPLE
       PS C:\ Get-PureOnePod -arrayId 2dcf29ad-6aca-4913-b62e-a15875c6635f
 
@@ -1319,10 +1324,10 @@ function Get-PureOnePod {
 
       Returns the pod with the specified name on the specified FlashArray
     .NOTES
-      Version:        1.2
+      Version:        1.1
       Author:         Cody Hosterman https://codyhosterman.com
-      Creation Date:  05/01/2020
-      Purpose/Change: Moved to New-PureOneOperation
+      Creation Date:  08/29/2020
+      Purpose/Change: Core support
   
     *******Disclaimer:******************************************************
     This scripts are offered "as is" with no warranty.  While this 
@@ -1390,13 +1395,13 @@ function Get-PureOnePod {
 function Get-PureOneVolumeSnapshot {
     <#
     .SYNOPSIS
-      Returns all Pure Storage volume snapshots listed in your Pure1 account.
+      Returns all Pure Storage volume snapshots listed in all connected Pure1 organizations.
     .DESCRIPTION
-      Returns all Pure Storage volume snapshots listed in your Pure1 account. Allows for some filters.
+      Returns all Pure Storage volume snapshots listed in all connected Pure1 organizations. Allows for some filters.
     .INPUTS
       None required. Optional inputs are array type, array name, volume name, snapshot name or snapshot serial, or Pure1 access token.
     .OUTPUTS
-      Returns the Pure Storage array information in Pure1.
+      Returns the Pure Storage array information in all connected Pure1 organizations.
     .EXAMPLE
       PS C:\ Get-PureOneVolumeSnapshot
 
@@ -1414,10 +1419,10 @@ function Get-PureOneVolumeSnapshot {
 
       Returns all snapshots for the specified volume 
     .NOTES
-      Version:        1.2
+      Version:        1.1
       Author:         Cody Hosterman https://codyhosterman.com
-      Creation Date:  05/01/2020
-      Purpose/Change: Moved to New-PureOneOperation
+      Creation Date:  08/29/2020
+      Purpose/Change: Core support
   
     *******Disclaimer:******************************************************
     This scripts are offered "as is" with no warranty.  While this 
@@ -1517,13 +1522,13 @@ function Get-PureOneVolumeSnapshot {
 function Get-PureOneFileSystem {
     <#
     .SYNOPSIS
-      Returns all Pure Storage file systems listed in your Pure1 account.
+      Returns all Pure Storage file systems listed in all connected Pure1 organizations.
     .DESCRIPTION
-      Returns all Pure Storage file systems  listed in your Pure1 account. Allows for some filters.
+      Returns all Pure Storage file systems  listed in all connected Pure1 organizations. Allows for some filters.
     .INPUTS
       None required. Optional inputs are array type, array name, file system name, or Pure1 access token.
     .OUTPUTS
-      Returns the Pure Storage array information in Pure1.
+      Returns the Pure Storage array information in all connected Pure1 organizations.
     .EXAMPLE
       PS C:\ Get-PureOneFileSystem
       
@@ -1545,10 +1550,10 @@ function Get-PureOneFileSystem {
       
       Return all FlashBlade file systems on specified array(NFS, SMB, S3)
     .NOTES
-      Version:        1.0
+      Version:        1.1
       Author:         Cody Hosterman https://codyhosterman.com
-      Creation Date:  01/21/2019
-      Purpose/Change: Initial script development
+      Creation Date:  08/29/2020
+      Purpose/Change: Core support
   
     *******Disclaimer:******************************************************
     This scripts are offered "as is" with no warranty.  While this 
@@ -1615,13 +1620,13 @@ function Get-PureOneFileSystem {
 function Get-PureOneFileSystemSnapshot {
     <#
     .SYNOPSIS
-      Returns all Pure Storage file system snapshots listed in your Pure1 account.
+      Returns all Pure Storage file system snapshots listed in all connected Pure1 organizations.
     .DESCRIPTION
-      Returns all Pure Storage file system snapshots listed in your Pure1 account. Allows for some filters.
+      Returns all Pure Storage file system snapshots listed in all connected Pure1 organizations. Allows for some filters.
     .INPUTS
       None required. Optional inputs are array name, file system name, snapshot name, or Pure1 access token.
     .OUTPUTS
-      Returns the Pure Storage file system(s) information in Pure1.
+      Returns the Pure Storage file system(s) information in all connected Pure1 organizations.
     .EXAMPLE
       PS C:\ Get-PureOneFileSystemSnapshot
 
@@ -1641,8 +1646,8 @@ function Get-PureOneFileSystemSnapshot {
     .NOTES
       Version:        1.1
       Author:         Cody Hosterman https://codyhosterman.com
-      Creation Date:  04/30/2020
-      Purpose/Change: Parameter sets and examples added
+      Creation Date:  08/29/2020
+      Purpose/Change: Core support
   
     *******Disclaimer:******************************************************
     This scripts are offered "as is" with no warranty.  While this 
@@ -1715,13 +1720,13 @@ function Get-PureOneFileSystemSnapshot {
 function Get-PureOneArrayLoadMeter {
     <#
     .SYNOPSIS
-      Returns the busy meter for a given array in Pure1
+      Returns the busy meter for a given array in all connected Pure1 organizations
     .DESCRIPTION
-      Returns the busy meter for a given array (or arrays) in Pure1, either an average or a maximum of a given time period. Default behavior is to return the average.
+      Returns the busy meter for a given array (or arrays) in all connected Pure1 organizations, either an average or a maximum of a given time period. Default behavior is to return the average.
     .INPUTS
       Required: resource names or IDs--must be an array. Optional: timeframe, granularity, and aggregation type (if none entered defaults will be used based on metric entered). Also optionally an access token.
     .OUTPUTS
-      Returns the Pure Storage busy meter metric information in Pure1.
+      Returns the Pure Storage busy meter metric information in all connected Pure1 organizations.
     .EXAMPLE
       PS C:\ Get-PureOneArrayBusyMeter -objectName flasharray-m50-1
 
@@ -1739,10 +1744,10 @@ function Get-PureOneArrayLoadMeter {
 
       Returns one value for the previous 24 hours, representing the maximum busyness value for the specified array in that window.
     .NOTES
-      Version:        1.3
+      Version:        1.1
       Author:         Cody Hosterman https://codyhosterman.com
-      Creation Date:  05/07/2020
-      Purpose/Change: Invoke rest changed.
+      Creation Date:  08/29/2020
+      Purpose/Change: Core support
   
     *******Disclaimer:******************************************************
     This scripts are offered "as is" with no warranty.  While this 
@@ -1936,12 +1941,14 @@ function Get-PureOneToken{
   {
       if ($defaultOrg -eq $true)
       {
-        if ($null -eq $Global:DefaultPureOneConnection)
+        $foundDefaultOrg = $null
+        $foundDefaultOrg = $Global:PureOneConnections |Where-Object {$_.DefaultOrg -eq $true}
+        if ($null -eq $foundDefaultOrg)
         {
-          throw "No default Pure1 Connection found. Please authenticate with New-PureOneConnection"
+          throw "No default Pure1 Connection found. Please authenticate with New-PureOneConnection or set a connection with the .SetDefault(`$true) operation"
         }
         else {
-          return $Global:DefaultPureOneConnection.PureOneToken
+          return $Global:foundDefaultOrg.PureOneToken
         }
       }
       else {
@@ -1961,6 +1968,7 @@ class PureOneOrganization
   [string] $PureOneAppID
   [string] $PureOneToken
   [System.Security.Cryptography.X509Certificates.X509Certificate]$Certificate
+  [bool]$DefaultOrg = $false
   hidden [bool]$updateLock = $false
     # Constructor
     PureOneOrganization ([int] $PureOneOrgID, [string] $pureOneToken, [string] $PureOneAppID, [string] $role,[datetime] $SessionExpiration, [System.Security.Cryptography.X509Certificates.X509Certificate]$Certificate)
@@ -1975,15 +1983,33 @@ class PureOneOrganization
     RefreshConnection ()
     {
       $this.updateLock = $true
-      $this.PureOneToken = New-PureOneConnection -pureAppID $this.PureOneAppID -certificate $this.Certificate
+      $org = New-PureOneConnection -pureAppID $this.PureOneAppID -certificate $this.Certificate -returnOrg
+      $this.SessionExpiration = $org.SessionExpiration
+      $this.PureOneToken = $org.pureOnetoken
       $this.updateLock = $false
       return 
+    }
+    SetDefault ([bool]$DefaultOrg)
+    {
+      if ($DefaultOrg -eq $true)
+      {
+        $count = 0
+        foreach ($connection in $Global:PureOneConnections) 
+        {
+          if (($connection.DefaultOrg -eq $true) -and ($connection.PureOneOrgID -ne $this.PureOneOrgID))
+          {
+            throw "Cannot set this connection as default, connection for Pure1 organization $($connection.PureOneOrgID) is already default. Unset it via: `$Global:PureOneConnections[$($count)].SetDefault(`$false)."
+          }
+          $count++
+        }
+      }
+      $this.DefaultOrg = $DefaultOrg
     }
 }
 #Global variables
 $global:pureOneRateLimit = $null
 $global:pureOneRestVersion = "1.latest"
-$Global:DefaultPureOneConnection = $null
+$Global:PureOneConnections = @()
 
 New-Alias -Name Get-PureOneArrayBusyMeter -Value Get-PureOneArrayLoadMeter
 New-Alias -Name New-PureOneRestConnection -Value New-PureOneConnection
