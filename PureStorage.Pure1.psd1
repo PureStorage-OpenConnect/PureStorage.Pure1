@@ -4,7 +4,7 @@
 	 Created by:   	Cody Hosterman
 	 Organization: 	Pure Storage, Inc.
 	 Filename:     	Cody.PureStorage.Pure1.psd1
-	 Version:		1.0.1.0
+	 Version:		1.1.0.0
 	 Copyright:		2020 Pure Storage, Inc.
 	-------------------------------------------------------------------------
 	 Module Name: PureStoragePure1PowerShell
@@ -24,7 +24,8 @@
 #>
 
 @{
-	
+	#editions of PowerShell supported
+	CompatiblePSEditions = @('Desktop', 'Core')
 	# Script module or binary module file associated with this manifest.
 	RootModule = 'PureStorage.Pure1.psm1'
 	
@@ -47,7 +48,7 @@
 	Description = 'Pure Storage Pure1 REST API integration with Windows PowerShell.'
 	
 	# Minimum version of the Windows PowerShell engine required by this module
-	PowerShellVersion = '5.0'
+	PowerShellVersion = '5.1'
 	
 	# Name of the Windows PowerShell host required by this module
 	PowerShellHostName = ''
@@ -85,7 +86,7 @@
 	NestedModules = @()
 	
 	# Functions to export from this module
-	FunctionsToExport = 'New-PureOneRestConnection','Get-PureOneArray','New-PureOneRestOperation','Get-PureOneArrayTag','Set-PureOneArrayTag','Remove-PureOneArrayTag','Get-PureOneArrayNetworking','Get-PureOneMetricDetail','Get-PureOneMetric','Get-PureOneVolume','Get-PureOnePod','Get-PureOneVolumeSnapshot','Get-PureOneFileSystem','Get-PureOneFileSystemSnapshot','Get-PureOneArrayBusyMeter','New-PureOneCertificate','Get-PureOnePublicKey','New-PureOneJwt'
+	FunctionsToExport = 'New-PureOneConnection','Get-PureOneArray','New-PureOneOperation','Get-PureOneArrayTag','Set-PureOneArrayTag','Remove-PureOneArrayTag','Get-PureOneArrayNetworking','Get-PureOneMetricDetail','Get-PureOneMetric','Get-PureOneVolume','Get-PureOnePod','Get-PureOneVolumeSnapshot','Get-PureOneFileSystem','Get-PureOneFileSystemSnapshot','Get-PureOneArrayLoadMeter','New-PureOneCertificate','Get-PureOnePublicKey','New-PureOneJwt'
 	
 	# Cmdlets to export from this module
 	CmdletsToExport = '*'
@@ -94,7 +95,7 @@
 	VariablesToExport = '*'
 	
 	# Aliases to export from this module
-	AliasesToExport = ''
+	AliasesToExport = 'New-PureOneRestConnection','New-PureOneRestOperation','Get-PureOneArrayBusyMeter'
 	
 	# List of all modules packaged with this module
 	ModuleList = @()
