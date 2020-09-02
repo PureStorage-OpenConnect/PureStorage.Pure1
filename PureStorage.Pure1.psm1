@@ -515,14 +515,15 @@ function New-PureOneOperation {
   Write-Debug $pureOneHeader.authorization
   $apiendpoint = "https://api.pure1.purestorage.com/api/$($global:pureOneRestVersion)/" + $resourceType + $queryFilter
   Write-Debug $apiendpoint
+  $ErrorActionPreference = "Stop"
   if ($jsonBody -ne "")
   {
-      $pureResponse = Invoke-RestMethod -Method $restOperationType -Uri $apiendpoint -ContentType "application/json" -Headers $pureOneHeader  -Body $jsonBody
+      $pureResponse = Invoke-RestMethod -Method $restOperationType -Uri $apiendpoint -ContentType "application/json" -Headers $pureOneHeader  -Body $jsonBody -ErrorAction Stop
       $pureObjects = $pureResponse.items
   }
   else 
   {
-    $pureResponse = Invoke-RestMethod -Method $restOperationType -Uri $apiendpoint -ContentType "application/json" -Headers $pureOneHeader 
+    $pureResponse = Invoke-RestMethod -Method $restOperationType -Uri $apiendpoint -ContentType "application/json" -Headers $pureOneHeader -ErrorAction Stop
     Write-Debug $pureResponse
     $pureObjects = $pureResponse.items
     while ($null -ne $pureResponse.continuation_token) 
@@ -553,6 +554,7 @@ function New-PureOneOperation {
         } 
     }  
   }   
+  $ErrorActionPreference = "Continue"
   return $pureObjects
 }
 function Get-PureOneArray {
