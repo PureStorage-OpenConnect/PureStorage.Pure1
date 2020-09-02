@@ -5,7 +5,7 @@
 <!-- /wp:paragraph -->
 
 <!-- wp:paragraph -->
-<p>The module is called&nbsp;<a href="https://www.powershellgallery.com/packages/PureStorage.Pure1">PureStorage.Pure1</a></p>
+<p>The module is called <a href="https://www.powershellgallery.com/packages/PureStorage.Pure1">PureStorage.Pure1</a></p>
 <!-- /wp:paragraph -->
 
 <!-- wp:paragraph -->
@@ -62,12 +62,12 @@ https://www.codyhosterman.com/2019/12/pure1-rest-api-authentication-made-easy/
 <p>Use either get-help or get-command to see the details:</p>
 <!-- /wp:paragraph -->
 
-<!-- wp:image {"id":6579,"sizeSlug":"large"} -->
-<figure class="wp-block-image size-large"><img src="https://www.codyhosterman.com/wp-content/uploads/2020/04/image-27-1024x532.png" alt="" class="wp-image-6579"/></figure>
+<!-- wp:image {"id":6899,"sizeSlug":"large"} -->
+<figure class="wp-block-image size-large"><img src="https://www.codyhosterman.com/wp-content/uploads/2020/09/image-15-1024x495.png" alt="" class="wp-image-6899"/></figure>
 <!-- /wp:image -->
 
-<!-- wp:image {"id":6209,"sizeSlug":"large"} -->
-<figure class="wp-block-image size-large"><img src="https://www.codyhosterman.com/wp-content/uploads/2019/12/image-17.png" alt="" class="wp-image-6209"/></figure>
+<!-- wp:image {"id":6900,"sizeSlug":"large"} -->
+<figure class="wp-block-image size-large"><img src="https://www.codyhosterman.com/wp-content/uploads/2020/09/image-16-980x1024.png" alt="" class="wp-image-6900"/></figure>
 <!-- /wp:image -->
 
 <!-- wp:paragraph -->
@@ -83,7 +83,7 @@ https://www.codyhosterman.com/2019/12/pure1-rest-api-authentication-made-easy/
 <!-- /wp:list -->
 
 <!-- wp:heading -->
-<h2>Latest version 1.0.1.1 (April 30th, 2020)</h2>
+<h2>Latest version 1.2.0.0 (September 1st, 2020)</h2>
 <!-- /wp:heading -->
 
 <!-- wp:paragraph -->
@@ -95,7 +95,7 @@ https://www.codyhosterman.com/2019/12/pure1-rest-api-authentication-made-easy/
 <!-- /wp:paragraph -->
 
 <!-- wp:list -->
-<ul><li>Continuation Token Support</li><li>-Debug support</li><li>Handle exceeding rate limits</li><li>Get-Help examples</li><li>Support for varied REST versions in global parameter $Global:PureOneRestVersion</li><li>Support for customer query result limits in global parameter $Global:PureOneRateLimit</li><li>Various internal improvements</li></ul>
+<ul><li>Core Support on Linux and MacOS</li><li>Multiple Pure1 Organizations</li></ul>
 <!-- /wp:list -->
 
 <!-- wp:paragraph -->
@@ -103,7 +103,7 @@ https://www.codyhosterman.com/2019/12/pure1-rest-api-authentication-made-easy/
 <!-- /wp:paragraph -->
 
 <!-- wp:list -->
-<ul><li>Get-PureOneVolumeSnapshot fails at scale</li><li>Volume filter didn't work for Get-PureOneVolumeSnapshot</li><li>No Parameter sets/mandatory parameters</li><li>Defaulting to REST 1.0 only</li></ul>
+<ul><li>Improved error handling</li><li>Missing help examples</li></ul>
 <!-- /wp:list -->
 
 <!-- wp:paragraph -->
@@ -111,7 +111,7 @@ https://www.codyhosterman.com/2019/12/pure1-rest-api-authentication-made-easy/
 <!-- /wp:paragraph -->
 
 <!-- wp:list -->
-<ul><li>New-PureOneCertificate</li><li>Get-PureOnePublicKey</li><li>New-PureOneJwt</li><li>New-PureOneRestConnection </li><li>Get-PureOneArrays </li><li>New-PureOneRestOperation </li><li>Get-PureOneArrayTags </li><li>Set-PureOneArrayTags </li><li>Remove-PureOneArrayTags </li><li>Get-PureOneArrayNetworking </li><li>Get-PureOneMetricDetails </li><li>Get-PureOneMetrics </li><li>Get-PureOneVolumes </li><li>Get-PureOnePods </li><li>Get-PureOneVolumeSnapshots </li><li>Get-PureOneFileSystems </li><li>Get-PureOneFileSystemSnapshots </li><li>Get-PureOneArrayBusyMeter</li></ul>
+<ul><li>New-PureOneCertificate</li><li>Get-PureOnePublicKey</li><li>New-PureOneJwt</li><li>New-PureOneConnection </li><li>Get-PureOneArrays </li><li>New-PureOneOperation </li><li>Get-PureOneArrayTags </li><li>Set-PureOneArrayTags </li><li>Remove-PureOneArrayTags </li><li>Get-PureOneArrayNetworking </li><li>Get-PureOneMetricDetails </li><li>Get-PureOneMetrics </li><li>Get-PureOneVolumes </li><li>Get-PureOnePods </li><li>Get-PureOneVolumeSnapshots </li><li>Get-PureOneFileSystems </li><li>Get-PureOneFileSystemSnapshots </li><li>Get-PureOneArrayBusyMeter</li></ul>
 <!-- /wp:list -->
 
 <!-- wp:paragraph -->
