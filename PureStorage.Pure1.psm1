@@ -479,9 +479,9 @@ function New-PureOneOperation {
 
     Create a Pure1 REST connection and requests all arrays
   .NOTES
-      Version:        1.1
+      Version:        1.2
       Author:         Cody Hosterman https://codyhosterman.com
-      Creation Date:  08/29/2020
+      Creation Date:  09/02/2020
       Purpose/Change: Core support
 
   *******Disclaimer:******************************************************
@@ -529,12 +529,14 @@ function New-PureOneOperation {
     while ($null -ne $pureResponse.continuation_token) 
     {
         $continuationToken = $pureResponse.continuation_token
-        if ($queryFilter -eq "")
+        if (($queryFilter -eq "") -and ($oneRound -ne $true))
         {
             $apiendpoint = $apiendpoint + "?"
         }
-        try {            
-          $pureResponse = Invoke-RestMethod -Method $restOperationType -Uri ($apiendpoint + "&continuation_token=`'$($continuationToken)`'") -ContentType "application/json" -Headers $pureOneHeader -ErrorAction Stop
+        try {      
+          Write-Debug ($apiendpoint + "&continuation_token=`'$($continuationToken)`'")     
+          $pureResponse = Invoke-RestMethod -Method $restOperationType -Uri  ($apiendpoint + "&continuation_token=`'$($continuationToken)`'")  -ContentType "application/json" -Headers $pureOneHeader -ErrorAction Stop
+          $oneRound = $True
           write-debug $pureResponse
           $pureObjects += $pureResponse.items
         }
