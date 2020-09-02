@@ -15,7 +15,18 @@ function New-PureOneCertificate {
     .EXAMPLE
       PS C:\ New-PureOneCertificate -certificateStore cert:\localmachine\my
 
-      Creates a properly formatted self-signed certificate for Pure1 authentication. Uses the specifed certificate store. Non-default stores usually require running as administrator.
+      Creates a properly formatted self-signed certificate for Pure1 authentication. Uses the specifed certificate store. Non-default stores usually require running as administrator. Windows only.
+    .EXAMPLE
+      PS /home/pureuser> $password = Read-Host -AsSecureString
+      PS /home/pureuser> New-PureOneCertificate -RsaPassword $password
+
+      Creates a properly formatted private and public key pair for Pure1 authentication. Uses the working directory. Linux or MacOS only.
+
+    .EXAMPLE
+      PS /home/pureuser> $password = Read-Host -AsSecureString  
+      PS /home/pureuser> New-PureOneCertificate -RsaPassword $password -PrivateKeyFileDirectory "/home/pureuser"
+
+      Creates a properly formatted private and public key pair for Pure1 authentication and stores it in specified directory. Linux or MacOS only.
     .NOTES
       Version:        1.1
       Author:         Cody Hosterman https://codyhosterman.com
@@ -31,23 +42,72 @@ function New-PureOneCertificate {
     ************************************************************************
     #>
 
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName='Certificate')]
     Param(
-            [Parameter(Position=0)]
-            [String]$certificateStore = "cert:\currentuser\my"
+            [Parameter(Position=0,ParameterSetName='Certificate')]
+            [String]$CertificateStore = "cert:\currentuser\my",
+
+            [Parameter(Position=1,ParameterSetName='RSAPair',mandatory=$True)]
+            [SecureString]$RsaPassword,
+            
+            [Parameter(Position=2,ParameterSetName='RSAPair')]
+            [Switch]$Overwrite,
+
+            [Parameter(Position=3,ParameterSetName='RSAPair')]
+            [String]$PrivateKeyFileDirectory
     )
-    if (([System.Environment]::OSVersion.Version).Major -eq 6)
+    if ([string]::IsNullOrEmpty($PrivateKeyFileDirectory))
     {
-        #For Windows 2012 support--less specific but the default certificate still works.
-        $CertObj = New-SelfSignedCertificate -certstorelocation $certificateStore -DnsName PureOneCert
+      $keyPath = (Get-Location).Path
     }
-    else 
+    else {
+      if ((Test-Path -Path $PrivateKeyFileDirectory) -eq $false)
+      {
+        throw "Entered path $($PrivateKeyFileDirectory) is not valid. Please enter a valid directory. For example, /home/user"
+      }
+      else {
+        $keyPath = $PrivateKeyFileDirectory
+      }
+    }
+    $checkPath = Test-Path "$($keyPath)/PureOnePrivate.pem"
+    if (($checkPath -eq $true) -and ($Overwrite -eq $false))
     {
-        $policies = [System.Security.Cryptography.CngExportPolicies]::AllowPlaintextExport,[System.Security.Cryptography.CngExportPolicies]::AllowExport
-        $CertObj = New-SelfSignedCertificate -certstorelocation $certificateStore -HashAlgorithm "SHA256" -KeyLength 2048 -KeyAlgorithm RSA -KeyUsage DigitalSignature  -KeyExportPolicy $policies -Subject "PureOneCert" -ErrorAction Stop   
+      throw "A pre-existing Pure1 Private Key exists at $($keyPath)/PureOnePrivate.pem. Overwriting this key will require a new application ID to be generated for the new key in Pure1. Either re-run with the -overwrite switch, or specify a different directory in the -keypath parameter, or skip this cmdlet and pass in the path of your custom key location to New-PureOneConnection."
     }
-    $cert = Get-ChildItem -Path $CertObj.PSPath
-    return $cert
+    if ($IsWindows -eq $false)
+    {
+      if ($RsaPassword.Length -eq 0)
+      {
+        $RsaPassword = Read-Host -Prompt "Please enter a password to be used for the private key" -AsSecureString
+      }
+      $DecryptedRsaPassword = ConvertFrom-SecureString $RsaPassword -AsPlainText 
+      if (($DecryptedRsaPassword.length -lt 4) -or ($DecryptedRsaPassword.length -gt 1022))
+      {
+        throw "The entered private key password must be more than 4 characters and less than 1023 characters."
+      }
+      openssl genrsa -aes256 -passout pass:$DecryptedRsaPassword -out $keypath/PureOnePrivate.pem 2048 2>/dev/null
+      openssl rsa -in $keypath/PureOnePrivate.pem -outform PEM -pubout -out $keypath/PureOnePublic.pem -passin pass:$DecryptedRsaPassword 2>/dev/null
+      $keyPaths = [ordered]@{
+        PrivateKey = "$($keyPath)/PureOnePrivate.pem"
+        PublicKey = "$($keyPath)/PureOnePublic.pem"
+      }
+      return $keyPaths
+    }
+    if (($null -eq $isWindows) -or ($isWindows -eq $true))
+    {
+      if (([System.Environment]::OSVersion.Version).Major -eq 6)
+      {
+          #For Windows 2012 support--less specific but the default certificate still works.
+          $CertObj = New-SelfSignedCertificate -certstorelocation $certificateStore -DnsName PureOneCert
+      }
+      else 
+      {
+          $policies = [System.Security.Cryptography.CngExportPolicies]::AllowPlaintextExport,[System.Security.Cryptography.CngExportPolicies]::AllowExport
+          $CertObj = New-SelfSignedCertificate -certstorelocation $certificateStore -HashAlgorithm "SHA256" -KeyLength 2048 -KeyAlgorithm RSA -KeyUsage DigitalSignature  -KeyExportPolicy $policies -Subject "PureOneCert" -ErrorAction Stop   
+      }
+      $cert = Get-ChildItem -Path $CertObj.PSPath
+      return $cert
+    }
 }
 function Get-PureOnePublicKey {
     <#
@@ -69,6 +129,17 @@ function Get-PureOnePublicKey {
       PS C:\ Get-PureOnePublicKey -certificate $cert
 
       Returns the PEM formatted Public Key of the certificate passed in so that it can be entered in Pure1.
+    .EXAMPLE
+      PS /home/pureuser> $password = Read-Host -AsSecureString
+      PS /home/pureuser> $keys = New-PureOneCertificate -RsaPassword $password
+      PS /home/pureuser> Get-PureOnePublicKey -PrivateKeyFileLocation $keys.PrivateKey -RsaPassword $password
+
+      Returns the PEM formatted Public Key of the default Pure1 private key file passed in so that it can be entered in Pure1.
+    .EXAMPLE
+      PS /home/pureuser> $password = Read-Host -AsSecureString  
+      PS /home/pureuser> Get-PureOnePublicKey -PrivateKeyFileLocation /home/pureuser/PureOnePrivateKey.pem -RsaPassword $password
+
+      Returns the PEM formatted Public Key of a private key file passed in so that it can be entered in Pure1.
     .NOTES
       Version:        1.1
       Author:         Cody Hosterman https://codyhosterman.com
@@ -86,11 +157,37 @@ function Get-PureOnePublicKey {
 
     [CmdletBinding()]
     Param(
-        [Parameter(Position=0,ValueFromPipeline=$True,mandatory=$True)]
-        [System.Security.Cryptography.X509Certificates.X509Certificate]$certificate
+        [Parameter(Position=0,ValueFromPipeline=$True,mandatory=$True,ParameterSetName='Certificate')]
+        [System.Security.Cryptography.X509Certificates.X509Certificate]$Certificate,
+
+        [Parameter(Position=1,ParameterSetName='RSAPair',mandatory=$True)]
+        [String]$PrivateKeyFileLocation,
+
+        [Parameter(Position=2,ParameterSetName='RSAPair',mandatory=$True)]
+        [securestring]$RsaPassword
     )
-    $certRaw = ([System.Convert]::ToBase64String($certificate.PublicKey.EncodedKeyValue.RawData)).tostring()
-    return ("-----BEGIN PUBLIC KEY-----`n" + "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A" + $certRaw + "`n-----END PUBLIC KEY-----")
+    if ($null -eq $certificate)
+    {
+      $checkPath = Test-Path $PrivateKeyFileLocation
+      if ($checkPath -eq $false)
+      {
+        throw "File not found at $($PrivateKeyFileLocation). Check path and try again."
+      }
+      $DecryptedRsaPassword = ConvertFrom-SecureString $RsaPassword -AsPlainText
+      openssl rsa -in $($PrivateKeyFileLocation) -outform PEM -pubout -out ./PureOnePublicTemp.pem -passin pass:$DecryptedRsaPassword  2>/dev/null
+      $checkPath = Test-Path ./PureOnePublicTemp.pem
+      if ($checkPath -eq $false)
+      {
+        throw "Public key could not be generated. Confirm password and/or permission access to private key"
+      }
+      $publicKey = Get-Content ./PureOnePublicTemp.pem
+      Remove-Item -Path ./PureOnePublicTemp.pem
+      Return $publicKey
+    }
+    else {
+     $certRaw = ([System.Convert]::ToBase64String($certificate.PublicKey.EncodedKeyValue.RawData)).tostring()
+      return ("-----BEGIN PUBLIC KEY-----`n" + "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A" + $certRaw + "`n-----END PUBLIC KEY-----")
+    }
 }
 function New-PureOneJwt {
     <#
@@ -111,7 +208,17 @@ function New-PureOneJwt {
         PS C:\ $cert = New-PureOneCertificate
         PS C:\ New-PureOneJwt -certificate $cert -pureAppID pure1:apikey:v4u3ZXXXXXXXXC6o -expiration ((get-date).addDays(2))
 
-        Returns a JSON Web Token that can be used to create a Pure1 REST session. An expiration was set for two days for now, so this JWT will be valid to create new REST sessions for 48 hours.
+        Returns a JSON Web Token that can be used to create a Pure1 REST session. An expiration is set for two days from now, so this JWT will be valid to create new REST sessions for 48 hours.
+    .EXAMPLE
+      PS /home/pureuser> $password = Read-Host -AsSecureString  
+      PS /home/pureuser> New-PureOneJwt -PrivateKeyFileLocation /home/pureuser/PureOnePrivate.pem -RsaPassword $password -PureAppID pure1:apikey:TACAwKsXL7kLa96q
+
+      Creates a JSON web token for external use for the specified private key and the associated Pure1 API key.
+    .EXAMPLE
+      PS /home/pureuser> $password = Read-Host -AsSecureString  
+      PS /home/pureuser> New-PureOneJwt -PrivateKeyFileLocation /home/pureuser/PureOnePrivate.pem -RsaPassword $password -PureAppID pure1:apikey:TACAwKsXL7kLa96q
+
+      Creates a JSON web token for external use for the specified private key and the associated Pure1 API key. An expiration is set for two days from now, so this JWT will be valid to create new REST sessions for 48 hours.
     .NOTES
       Version:        1.1
       Author:         Cody Hosterman https://codyhosterman.com
@@ -129,54 +236,62 @@ function New-PureOneJwt {
 
     [CmdletBinding()]
     Param(
-            [Parameter(Position=0,ValueFromPipeline=$True)]
-            [System.Security.Cryptography.X509Certificates.X509Certificate]$certificate,
+            [Parameter(Position=0,ValueFromPipeline=$True,ParameterSetName='Windows')]
+            [System.Security.Cryptography.X509Certificates.X509Certificate]$Certificate,
 
             [Parameter(Position=1,mandatory=$True)]
-            [string]$pureAppID,
+            [string]$PureAppID,
             
-            [Parameter(Position=2,ValueFromPipeline=$True)]
-            [System.Security.Cryptography.RSA]$privateKey,
+            [Parameter(Position=2,ValueFromPipeline=$True,ParameterSetName='Windows')]
+            [System.Security.Cryptography.RSA]$PrivateKey,
 
             [Parameter(Position=3,ValueFromPipeline=$True)]
-            [System.DateTime]$expiration
-    )
+            [System.DateTime]$Expiration,
 
-    if (($null -eq $privateKey) -and ($null -eq $certificate))
+            [Parameter(Position=4,ParameterSetName='Unix',mandatory=$True)]
+            [string]$PrivateKeyFileLocation,
+
+            [Parameter(Position=5,ParameterSetName='Unix',mandatory=$True)]
+            [securestring]$RsaPassword
+    )
+    if (($null -eq $isWindows) -or ($isWindows -eq $true))
     {
-        throw "You must pass in a x509 certificate or a RSA Private Key"
-    }
-    #checking for certificate accuracy
-    if ($null -ne $certificate)
-    {
-        if ($certificate.HasPrivateKey -ne $true)
-        {
-            throw "There is no private key associated with this certificate. Please regenerate certificate with a private key."
-        }
-        if ($null -ne $certificate.PrivateKey)
-        {
-            $privateKey = $certificate.PrivateKey
-        }
-        else {
-            try {
-                $privateKey = [System.Security.Cryptography.X509Certificates.RSACertificateExtensions]::GetRSAPrivateKey($certificate)
-            }
-            catch {
-                throw "Could not obtain the private key from the certificate. Please re-run this cmdlet from a PowerShell session started with administrative rights or ensure you have Read Only or higher rights to the certificate."
-            }
-        }
-    }
-    #checking for correct private key type. Must be SHA-256, 2048 bit.
-    if ($null -ne $privateKey)
-    {
-        if ($privateKey.KeySize -ne 2048)
-        {
-            throw "The key must be 2048 bit. It is currently $($privateKey.KeySize)"
-        }
-        if ($privateKey.SignatureAlgorithm -ne "RSA")
-        {
-            throw "This key is not an RSA-based key."
-        }
+      if (($null -eq $privateKey) -and ($null -eq $certificate))
+      {
+          throw "You must pass in a x509 certificate or a RSA Private Key"
+      }
+      #checking for certificate accuracy
+      if ($null -ne $certificate)
+      {
+          if ($certificate.HasPrivateKey -ne $true)
+          {
+              throw "There is no private key associated with this certificate. Please regenerate certificate with a private key."
+          }
+          if ($null -ne $certificate.PrivateKey)
+          {
+              $privateKey = $certificate.PrivateKey
+          }
+          else {
+              try {
+                  $privateKey = [System.Security.Cryptography.X509Certificates.RSACertificateExtensions]::GetRSAPrivateKey($certificate)
+              }
+              catch {
+                  throw "Could not obtain the private key from the certificate. Please re-run this cmdlet from a PowerShell session started with administrative rights or ensure you have Read Only or higher rights to the certificate."
+              }
+          }
+      }
+      #checking for correct private key type. Must be SHA-256, 2048 bit.
+      if ($null -ne $privateKey)
+      {
+          if ($privateKey.KeySize -ne 2048)
+          {
+              throw "The key must be 2048 bit. It is currently $($privateKey.KeySize)"
+          }
+          if ($privateKey.SignatureAlgorithm -ne "RSA")
+          {
+              throw "This key is not an RSA-based key."
+          }
+      }
     }
     $pureHeader = '{"alg":"RS256","typ":"JWT"}'
     $curTime = (Get-Date).ToUniversalTime()
@@ -193,10 +308,30 @@ function New-PureOneJwt {
     $encodedHeader = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($pureHeader)) -replace '\+','-' -replace '/','_' -replace '='
     $encodedPayload = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($payloadJson)) -replace '\+','-' -replace '/','_' -replace '='
     $toSign = $encodedHeader + '.' + $encodedPayload
-    $toSignEncoded = [System.Text.Encoding]::UTF8.GetBytes($toSign)
-    $signature = [Convert]::ToBase64String($privateKey.SignData($toSignEncoded,[Security.Cryptography.HashAlgorithmName]::SHA256,[Security.Cryptography.RSASignaturePadding]::Pkcs1)) -replace '\+','-' -replace '/','_' -replace '='
+    if ($IsWindows -eq $false) {
+        if ($RsaPassword.Length -eq 0)
+        {
+          $RsaPassword = Read-Host -Prompt "Please enter a password to be used for the private key" -AsSecureString
+        }
+        $DecryptedRsaPassword = ConvertFrom-SecureString $RsaPassword -AsPlainText
+        set-content -value $tosign -Path ./PureOneHeader.txt -NoNewline
+        Start-Process -FilePath ./openssl -ArgumentList "dgst -binary -sha256 -sign $($PrivateKeyFileLocation) -passin pass:$($DecryptedRsaPassword) -out ./PureOneSignedHeader.txt ./PureOneHeader.txt"
+        $signature = openssl base64 -in ./PureOneSignedHeader.txt
+        if ($null -eq $signature)
+        {
+          #sometimes this needs retried, honestly not sure why.
+          $signature = openssl base64 -in ./PureOneSignedHeader.txt
+        }
+        $signature = $signature -replace '\+','-' -replace '/','_' -replace '='
+        Remove-Item -Path ./PureOneSignedHeader.txt
+        Remove-Item -Path ./PureOneHeader.txt
+    }
+    else {
+      $toSignEncoded = [System.Text.Encoding]::UTF8.GetBytes($toSign)
+      $signature = [Convert]::ToBase64String($privateKey.SignData($toSignEncoded,[Security.Cryptography.HashAlgorithmName]::SHA256,[Security.Cryptography.RSASignaturePadding]::Pkcs1)) -replace '\+','-' -replace '/','_' -replace '='
+    }
     $jwt = $toSign + '.' + $signature 
-    return $jwt
+    return $jwt.Replace(" ", "")
 }
 function New-PureOneConnection {
     <#
@@ -219,6 +354,11 @@ function New-PureOneConnection {
       PS C:\ $privateKey | New-PureOneConnection -pureAppID pure1:apikey:PZogg67LcjImYTiI
 
       Create a Pure1 REST connection using a passed in private key and the specified Pure1 App ID
+    .EXAMPLE
+      PS /home/pureuser> $password = Read-Host -AsSecureString  
+      PS /home/pureuser> New-PureOneConnection -PrivateKeyFileLocation /home/pureuser/PureOnePrivate.pem -RsaPassword $password -PureAppID pure1:apikey:TACAwKsXL7kLa96q
+
+      Creates a Pure1 REST connection for use with additional Pure1 cmdlets.
     .NOTES
       Version:        1.1
       Author:         Cody Hosterman https://codyhosterman.com
@@ -237,24 +377,35 @@ function New-PureOneConnection {
     [CmdletBinding(DefaultParameterSetName='Certificate')]
     Param(
             [Parameter(Position=0,ValueFromPipeline=$True,mandatory=$True,ParameterSetName='Certificate')]
-            [System.Security.Cryptography.X509Certificates.X509Certificate]$certificate,
+            [System.Security.Cryptography.X509Certificates.X509Certificate]$Certificate,
 
-            [Parameter(Position=1,mandatory=$True,ParameterSetName='Certificate')]
-            [Parameter(Position=1,mandatory=$True,ParameterSetName='PrivateKey')]
-            [string]$pureAppID,
+            [Parameter(Position=1,mandatory=$True)]
+            [string]$PureAppID,
             
             [Parameter(Position=2,ValueFromPipeline=$True,mandatory=$True,ParameterSetName='PrivateKey')]
-            [System.Security.Cryptography.RSA]$privateKey,
+            [System.Security.Cryptography.RSA]$PrivateKey,
 
             [Parameter(Position=3)]
-            [switch]$returnOrg
+            [switch]$ReturnOrg,
+
+            [Parameter(Position=4,ParameterSetName='Unix',mandatory=$True)]
+            [string]$PrivateKeyFileLocation,
+
+            [Parameter(Position=5,ParameterSetName='Unix',mandatory=$True)]
+            [securestring]$RsaPassword
     )
-    if ($null -eq $certificate)
+    if ([string]::IsNullOrEmpty($PrivateKeyFileLocation))
     {
-        $jwt = New-PureOneJwt -privateKey $privateKey -pureAppID $pureAppID -expiration ((Get-Date).AddSeconds(60))
+      if ($null -eq $certificate)
+      {
+          $jwt = New-PureOneJwt -privateKey $privateKey -pureAppID $pureAppID -expiration ((Get-Date).AddSeconds(60))
+      }
+      else {
+          $jwt = New-PureOneJwt -certificate $certificate -pureAppID $pureAppID -expiration ((Get-Date).AddSeconds(60)) 
+      }
     }
     else {
-        $jwt = New-PureOneJwt -certificate $certificate -pureAppID $pureAppID -expiration ((Get-Date).AddSeconds(60)) 
+      $jwt = New-PureOneJwt -PrivateKeyFileLocation $PrivateKeyFileLocation -RsaPassword $RsaPassword -pureAppID $pureAppID -expiration ((Get-Date).AddSeconds(60))
     }
     $apiendpoint = "https://api.pure1.purestorage.com/oauth2/1.0/token"
     $AuthAction = @{
@@ -267,7 +418,13 @@ function New-PureOneConnection {
     $orgInfo = Resolve-JWTtoken -token $pureOnetoken
     $date = get-date "1/1/1970"
     $date = $date.AddSeconds($orgInfo.exp).ToLocalTime()
-    $newOrg = [PureOneOrganization]::new($orgInfo.org,$pureOnetoken.access_token, $PureAppID, $orgInfo.max_role, $date, $certificate)
+    if (($null -eq $isWindows) -or ($isWindows -eq $true))
+    {
+      $newOrg = New-Object -TypeName WindowsPureOneOrganization -ArgumentList $orgInfo.org,$pureOnetoken.access_token,$PureAppID,$orgInfo.max_role,$date,$certificate -ErrorAction Stop
+    }
+    else {
+      $newOrg = $newOrg = New-Object -TypeName UnixPureOneOrganization -ArgumentList $orgInfo.org,$pureOnetoken.access_token,$PureAppID,$orgInfo.max_role,$date,$RsaPassword,$PrivateKeyFileLocation -ErrorAction Stop
+    }
     if ($Global:PureOneConnections.Count -eq 0)
     {
       $Global:PureOneConnections += $newOrg
@@ -339,20 +496,20 @@ function New-PureOneOperation {
   [CmdletBinding()]
   Param(
       [Parameter(Position=0,mandatory=$True)]
-      [string]$resourceType,
+      [string]$ResourceType,
 
       [Parameter(Position=1)]
-      [string]$queryFilter,
+      [string]$QueryFilter,
 
       [Parameter(Position=2)]
-      [string]$jsonBody,
+      [string]$JsonBody,
 
       [Parameter(Position=3,mandatory=$True)]
       [ValidateSet('POST','GET','DELETE','PUT')]
-      [string]$restOperationType,
+      [string]$RestOperationType,
 
       [Parameter(Position=4)]
-      [string]$pureOneToken
+      [string]$PureOneToken
   )
   $pureOneHeader = Set-PureOneHeader -pureOneToken $pureOneToken -ErrorAction Stop
   Write-Debug $pureOneHeader.authorization
@@ -442,20 +599,20 @@ function Get-PureOneArray {
     [CmdletBinding(DefaultParameterSetName='OrgProduct')]
     Param(
             [Parameter(Position=0,ParameterSetName='Name',mandatory=$True)]
-            [string]$arrayName,
+            [string]$ArrayName,
 
             [Parameter(Position=1,ParameterSetName='Product',mandatory=$True)]
             [ValidateSet('Purity//FA','Purity//FB','FlashArray','FlashBlade')]
-            [string]$arrayProduct,
+            [string]$ArrayProduct,
             
             [Parameter(Position=2,ParameterSetName='ID',mandatory=$True)]
-            [string]$arrayId,
+            [string]$ArrayId,
 
             [Parameter(Position=3)]
-            [string]$pureOneToken,
+            [string]$PureOneToken,
 
             [Parameter(Position=4)]
-            [PureOneOrganization[]]$pureOneOrganization
+            [PureOneOrganization[]]$PureOneOrganization
     )
       if ($arrayProduct -ne "")
       {
@@ -542,21 +699,21 @@ function Get-PureOneArrayTag {
     [CmdletBinding(DefaultParameterSetName='TagKey')]
     Param(
             [Parameter(Position=0,ParameterSetName='ArrayNames')]
-            [string[]]$arrayNames,
+            [string[]]$ArrayNames,
          
             [Parameter(Position=1,ParameterSetName='ArrayIDs')]
-            [string[]]$arrayIds,
+            [string[]]$ArrayIds,
 
             [Parameter(Position=2,ParameterSetName='ArrayIDs')]
             [Parameter(Position=2,ParameterSetName='ArrayNames')]
             [Parameter(Position=2,ParameterSetName='TagKey')]
-            [string]$tagKey,
+            [string]$TagKey,
 
             [Parameter(Position=3)]
-            [string]$pureOneToken,
+            [string]$PureOneToken,
 
             [Parameter(Position=4)]
-            [PureOneOrganization[]]$pureOneOrganization
+            [PureOneOrganization[]]$PureOneOrganization
     )
       if ($arrayNames.count -gt 0)
       {
@@ -656,24 +813,24 @@ function Set-PureOneArrayTag {
     [CmdletBinding(DefaultParameterSetName='ArrayNames')]
     Param(
             [Parameter(Position=0,mandatory=$True,ParameterSetName='ArrayNames')]
-            [string[]]$arrayNames,
+            [string[]]$ArrayNames,
          
             [Parameter(Position=1,mandatory=$True,ParameterSetName='ArrayIDs')]
-            [string[]]$arrayIds,
+            [string[]]$ArrayIds,
 
             [Parameter(Position=2,mandatory=$True,ParameterSetName='ArrayIDs')]
             [Parameter(Position=2,mandatory=$True,ParameterSetName='ArrayNames')]
-            [string]$tagKey,
+            [string]$TagKey,
 
             [Parameter(Position=3,mandatory=$True,ParameterSetName='ArrayIDs')]
             [Parameter(Position=3,mandatory=$True,ParameterSetName='ArrayNames')]
-            [string]$tagValue,
+            [string]$TagValue,
 
             [Parameter(Position=4)]
-            [string]$pureOneToken,
+            [string]$PureOneToken,
 
             [Parameter(Position=4)]
-            [PureOneOrganization[]]$pureOneOrganization
+            [PureOneOrganization[]]$PureOneOrganization
 
     )
     if ($arrayNames.count -gt 0)
@@ -768,20 +925,20 @@ function Remove-PureOneArrayTag {
     [CmdletBinding(DefaultParameterSetName='ArrayNames')]
     Param(
             [Parameter(Position=0,mandatory=$True,ParameterSetName='ArrayNames')]
-            [string[]]$arrayNames,
+            [string[]]$ArrayNames,
          
             [Parameter(Position=1,mandatory=$True,ParameterSetName='ArrayIDs')]
-            [string[]]$arrayIds,
+            [string[]]$ArrayIds,
 
             [Parameter(Position=2,mandatory=$True,ParameterSetName='ArrayIDs')]
             [Parameter(Position=2,mandatory=$True,ParameterSetName='ArrayNames')]
-            [string[]]$tagKeys,
+            [string[]]$TagKeys,
 
             [Parameter(Position=3)]
-            [string]$pureOneToken,
+            [string]$PureOneToken,
 
             [Parameter(Position=4)]
-            [PureOneOrganization[]]$pureOneOrganization
+            [PureOneOrganization[]]$PureOneOrganization
     )
     if ($arrayNames.count -gt 0)
     {
@@ -884,24 +1041,24 @@ function Get-PureOneArrayNetworking {
     [CmdletBinding(DefaultParameterSetName='ArrayName')]
     Param(
             [Parameter(Position=0,mandatory=$True,ParameterSetName='ArrayName')]
-            [string]$arrayName,
+            [string]$ArrayName,
          
             [Parameter(Position=1,mandatory=$True,ParameterSetName='ArrayID')]
-            [string]$arrayId,
+            [string]$ArrayId,
 
             [Parameter(Position=2,ParameterSetName='ArrayID')]
             [Parameter(Position=2,ParameterSetName='ArrayName')]
-            [Switch]$virtualIP,
+            [Switch]$VirtualIP,
 
             [Parameter(Position=3,ParameterSetName='ArrayID')]
             [Parameter(Position=3,ParameterSetName='ArrayName')]
-            [string]$service,
+            [string]$Service,
 
             [Parameter(Position=4)]
-            [string]$pureOneToken,
+            [string]$PureOneToken,
 
             [Parameter(Position=4)]
-            [PureOneOrganization[]]$pureOneOrganization
+            [PureOneOrganization[]]$PureOneOrganization
     )
       if (($virtualIP -eq $true) -and (($service -ne "management") -and ($service -ne "") ))
       {
@@ -983,16 +1140,16 @@ function Get-PureOneMetricDetail {
     [CmdletBinding(DefaultParameterSetName='ResourceType')]
     Param(
             [Parameter(Position=0,ParameterSetName='MetricName')]
-            [string]$metricName,
+            [string]$MetricName,
          
             [Parameter(Position=1,ParameterSetName='ResourceType')]
-            [string]$resourceType,
+            [string]$ResourceType,
 
             [Parameter(Position=2)]
-            [string]$pureOneToken,
+            [string]$PureOneToken,
 
             [Parameter(Position=4)]
-            [PureOneOrganization]$pureOneOrganization
+            [PureOneOrganization]$PureOneOrganization
     )
         $objectQuery = "?"
         if ($resourceType -ne "")
@@ -1063,37 +1220,37 @@ function Get-PureOneMetric {
     Param(
             [Parameter(Position=0,mandatory=$True,ParameterSetName='ObjectNameAvg')]
             [Parameter(Position=0,mandatory=$True,ParameterSetName='ObjectNameMax')]
-            [string]$objectName,
+            [string]$ObjectName,
         
             [Parameter(Position=1,mandatory=$True,ParameterSetName='ObjectIDAvg')]
             [Parameter(Position=1,mandatory=$True,ParameterSetName='ObjectIDMax')]
-            [string]$objectId,
+            [string]$ObjectId,
 
             [Parameter(Position=2,ParameterSetName='ObjectIDAvg')]
             [Parameter(Position=2,ParameterSetName='ObjectNameAvg')]
-            [switch]$average,
+            [switch]$Average,
 
             [Parameter(Position=3,ParameterSetName='ObjectIDMax')]
             [Parameter(Position=3,ParameterSetName='ObjectNameMax')]
-            [switch]$maximum,
+            [switch]$Maximum,
 
             [Parameter(Position=4,mandatory=$True)]
-            [string]$metricName,
+            [string]$MetricName,
 
             [Parameter(Position=5)]
-            [System.DateTime]$startTime,
+            [System.DateTime]$StartTime,
 
             [Parameter(Position=6)]
-            [System.DateTime]$endTime,
+            [System.DateTime]$EndTime,
 
             [Parameter(Position=7)]
-            [Int64]$granularity,
+            [Int64]$Granularity,
 
             [Parameter(Position=8)]
-            [string]$pureOneToken,
+            [string]$PureOneToken,
 
             [Parameter(Position=4)]
-            [PureOneOrganization[]]$pureOneOrganization
+            [PureOneOrganization[]]$PureOneOrganization
     )
       if (($average -eq $false) -and ($maximum -eq $false)) 
       {
@@ -1109,7 +1266,7 @@ function Get-PureOneMetric {
       }
 
       #set end time to start time minus retention for that stat (if not entered) and convert to epoch time
-      if ($endTime -eq $null)
+      if ($null -eq $endTime)
       {
           $endTime = Get-Date
           $endTime = $endTime.ToUniversalTime()
@@ -1122,7 +1279,7 @@ function Get-PureOneMetric {
       $endEpoch = [math]::Round($endEpoch)
 
       #set start time to current time (if not entered) and convert to epoch time
-      if ($startTime -eq $null)
+      if ($null -eq $startTime)
       {
           $startTime = $epoch.AddMilliseconds($metricDetails._as_of - $metricDetails.availabilities.retention)
       }
@@ -1214,25 +1371,25 @@ function Get-PureOneVolume {
     Param(
             [Parameter(Position=0,ParameterSetName='ArrayNameVolName')]
             [Parameter(Position=0,ParameterSetName='ArrayNameVolSerial')]
-            [string]$arrayName,
+            [string]$ArrayName,
             
             [Parameter(Position=1,ParameterSetName='ArrayIDVolName')]
             [Parameter(Position=1,mandatory=$True,ParameterSetName='ArrayIDVolSerial')]
-            [string]$arrayId,
+            [string]$ArrayId,
 
             [Parameter(Position=2,ParameterSetName='ArrayIDVolName')]
             [Parameter(Position=2,ParameterSetName='ArrayNameVolName')]
-            [string]$volumeName,
+            [string]$VolumeName,
 
             [Parameter(Position=3,ParameterSetName='ArrayIDVolSerial')]
             [Parameter(Position=3,ParameterSetName='ArrayNameVolSerial')]
-            [string]$volumeSerial,
+            [string]$VolumeSerial,
 
             [Parameter(Position=4)]
-            [string]$pureOneToken,
+            [string]$PureOneToken,
 
             [Parameter(Position=4)]
-            [PureOneOrganization[]]$pureOneOrganization
+            [PureOneOrganization[]]$PureOneOrganization
     )
       if ($null -ne $global:pureOneRateLimit)
       {
@@ -1342,20 +1499,20 @@ function Get-PureOnePod {
     Param(
             [Parameter(Position=0,ParameterSetName='ArrayName')]
             [Parameter(Position=0,ParameterSetName='Pod')]
-            [string]$arrayName,
+            [string]$ArrayName,
             
             [Parameter(Position=1,ParameterSetName='ArrayId')]
             [Parameter(Position=1,ParameterSetName='Pod')]
-            [string]$arrayId,
+            [string]$ArrayId,
 
             [Parameter(Position=2,ParameterSetName='Pod')]
-            [string]$podName,
+            [string]$PodName,
 
             [Parameter(Position=3)]
-            [string]$pureOneToken,
+            [string]$PureOneToken,
 
             [Parameter(Position=4)]
-            [PureOneOrganization[]]$pureOneOrganization
+            [PureOneOrganization[]]$PureOneOrganization
     )
         $objectQuery = "?"
         if ($podName -ne "")
@@ -1436,25 +1593,25 @@ function Get-PureOneVolumeSnapshot {
     [CmdletBinding(DefaultParameterSetName='SnapshotName')]
     Param(
             [Parameter(Position=0,ParameterSetName='ArrayName')]
-            [string]$arrayName,
+            [string]$ArrayName,
             
             [Parameter(Position=1,ParameterSetName='ArrayID')]
-            [string]$arrayId,
+            [string]$ArrayId,
 
             [Parameter(Position=2,ParameterSetName='SnapshotName')]
-            [string]$snapshotName,
+            [string]$SnapshotName,
 
             [Parameter(Position=3,ParameterSetName='SnapshotSerial')]
-            [string]$snapshotSerial,
+            [string]$SnapshotSerial,
 
             [Parameter(Position=4,ParameterSetName='VolumeName')]
-            [string]$volumeName,
+            [string]$VolumeName,
 
             [Parameter(Position=5)]
-            [string]$pureOneToken,
+            [string]$PureOneToken,
 
             [Parameter(Position=4)]
-            [PureOneOrganization[]]$pureOneOrganization
+            [PureOneOrganization[]]$PureOneOrganization
     )
     if ($null -ne $global:pureOneRateLimit)
     {
@@ -1568,19 +1725,19 @@ function Get-PureOneFileSystem {
     [CmdletBinding(DefaultParameterSetName='FileSystem')]
     Param(
             [Parameter(Position=0,ParameterSetName='ArrayName')]
-            [string]$arrayName,
+            [string]$ArrayName,
             
             [Parameter(Position=1,ParameterSetName='ArrayID')]
-            [string]$arrayId,
+            [string]$ArrayId,
 
             [Parameter(Position=2,ParameterSetName='FileSystem')]
-            [string]$fsName,
+            [string]$FsName,
 
             [Parameter(Position=3)]
-            [string]$pureOneToken,
+            [string]$PureOneToken,
 
             [Parameter(Position=4)]
-            [PureOneOrganization[]]$pureOneOrganization
+            [PureOneOrganization[]]$PureOneOrganization
     )
     $objectQuery = "?"
     if ($fsName -ne "")
@@ -1661,22 +1818,22 @@ function Get-PureOneFileSystemSnapshot {
     [CmdletBinding(DefaultParameterSetName='FileSystemName')]
     Param(
             [Parameter(Position=0,ParameterSetName='ArrayName')]
-            [string]$arrayName,
+            [string]$ArrayName,
             
             [Parameter(Position=1,ParameterSetName='ArrayID')]
-            [string]$arrayId,
+            [string]$ArrayId,
 
             [Parameter(Position=2,ParameterSetName='SnapshotName')]
-            [string]$snapshotName,
+            [string]$SnapshotName,
 
             [Parameter(Position=3,ParameterSetName='FileSystemName')]
-            [string]$fsName,
+            [string]$FsName,
 
             [Parameter(Position=4)]
-            [string]$pureOneToken,
+            [string]$PureOneToken,
 
             [Parameter(Position=4)]
-            [PureOneOrganization[]]$pureOneOrganization
+            [PureOneOrganization[]]$PureOneOrganization
     )
     $objectQuery = "?"
     if ($snapshotName -ne "")
@@ -1762,35 +1919,35 @@ function Get-PureOneArrayLoadMeter {
             [Parameter(Position=0,mandatory=$True,ParameterSetName='objectName')]
             [Parameter(Position=0,mandatory=$True,ParameterSetName='objectNameAVG')]
             [Parameter(Position=0,mandatory=$True,ParameterSetName='objectNameMAX')]
-            [string[]]$objectName,
+            [string[]]$ObjectName,
          
             [Parameter(Position=1,mandatory=$True,ParameterSetName='objectID')]
             [Parameter(Position=1,mandatory=$True,ParameterSetName='objectIDAVG')]
             [Parameter(Position=1,mandatory=$True,ParameterSetName='objectIDMAX')]
-            [string[]]$objectId,
+            [string[]]$ObjectId,
 
             [Parameter(Position=2,mandatory=$True,ParameterSetName='objectNameAVG')]
             [Parameter(Position=2,mandatory=$True,ParameterSetName='objectIDAVG')]
-            [switch]$average,
+            [switch]$Average,
 
             [Parameter(Position=2,mandatory=$True,ParameterSetName='objectNameMAX')]
             [Parameter(Position=2,mandatory=$True,ParameterSetName='objectIDMAX')]
-            [switch]$maximum,
+            [switch]$Maximum,
 
             [Parameter(Position=5)]
-            [System.DateTime]$startTime,
+            [System.DateTime]$StartTime,
 
             [Parameter(Position=6)]
-            [System.DateTime]$endTime,
+            [System.DateTime]$EndTime,
 
             [Parameter(Position=7)]
-            [Int64]$granularity,
+            [Int64]$Granularity,
 
             [Parameter(Position=8)]
-            [string]$pureOneToken,
+            [string]$PureOneToken,
 
             [Parameter(Position=4)]
-            [PureOneOrganization[]]$pureOneOrganization
+            [PureOneOrganization[]]$PureOneOrganization
     )
       $metricName = "array_total_load"
       if (($average -eq $false) -and ($maximum -eq $false)) 
@@ -1967,28 +2124,10 @@ class PureOneOrganization
   [datetime] $SessionExpiration
   [string] $PureOneAppID
   [string] $PureOneToken
-  [System.Security.Cryptography.X509Certificates.X509Certificate]$Certificate
   [bool]$DefaultOrg = $false
   hidden [bool]$updateLock = $false
     # Constructor
-    PureOneOrganization ([int] $PureOneOrgID, [string] $pureOneToken, [string] $PureOneAppID, [string] $role,[datetime] $SessionExpiration, [System.Security.Cryptography.X509Certificates.X509Certificate]$Certificate)
-    {
-        $this.PureOneOrgID = $PureOneOrgID
-        $this.PureOneAppID = $PureOneAppID
-        $this.SessionExpiration = $SessionExpiration
-        $this.Role = $role
-        $this.PureOneToken = $pureOnetoken
-        $this.Certificate = $certificate
-    }
-    RefreshConnection ()
-    {
-      $this.updateLock = $true
-      $org = New-PureOneConnection -pureAppID $this.PureOneAppID -certificate $this.Certificate -returnOrg
-      $this.SessionExpiration = $org.SessionExpiration
-      $this.PureOneToken = $org.pureOnetoken
-      $this.updateLock = $false
-      return 
-    }
+    
     SetDefault ([bool]$DefaultOrg)
     {
       if ($DefaultOrg -eq $true)
@@ -2005,6 +2144,51 @@ class PureOneOrganization
       }
       $this.DefaultOrg = $DefaultOrg
     }
+}
+class UnixPureOneOrganization : PureOneOrganization {
+  [securestring]$RsaPassword 
+  [String]$PrivateKeyFileLocation
+  UnixPureOneOrganization ([int] $PureOneOrgID, [string] $pureOneToken, [string] $PureOneAppID, [string] $role,[datetime] $SessionExpiration,[securestring]$RsaPassword, [String]$PrivateKeyFileLocation)
+  {
+      $this.PureOneOrgID = $PureOneOrgID
+      $this.PureOneAppID = $PureOneAppID
+      $this.SessionExpiration = $SessionExpiration
+      $this.Role = $role
+      $this.PureOneToken = $pureOnetoken
+      $this.RsaPassword = $RsaPassword
+      $this.PrivateKeyFileLocation = $PrivateKeyFileLocation
+  }
+  RefreshConnection ()
+  {
+    $this.updateLock = $true
+    $org = New-PureOneConnection -pureAppID $this.PureOneAppID -PrivateKeyFileLocation $this.PrivateKeyFileLocation -RsaPassword $this.RsaPassword -returnOrg
+    $this.SessionExpiration = $org.SessionExpiration
+    $this.PureOneToken = $org.pureOnetoken
+    $this.updateLock = $false
+    return 
+  }
+}
+class WindowsPureOneOrganization : PureOneOrganization {
+  [System.Security.Cryptography.X509Certificates.X509Certificate]$Certificate
+  # Constructor
+  WindowsPureOneOrganization ([int] $PureOneOrgID, [string] $pureOneToken, [string] $PureOneAppID, [string] $role,[datetime] $SessionExpiration, [System.Security.Cryptography.X509Certificates.X509Certificate]$Certificate)
+  {
+      $this.PureOneOrgID = $PureOneOrgID
+      $this.PureOneAppID = $PureOneAppID
+      $this.SessionExpiration = $SessionExpiration
+      $this.Role = $role
+      $this.PureOneToken = $pureOnetoken
+      $this.Certificate = $certificate
+  }
+  RefreshConnection ()
+  {
+    $this.updateLock = $true
+    $org = New-PureOneConnection -pureAppID $this.PureOneAppID -certificate $this.Certificate -returnOrg
+    $this.SessionExpiration = $org.SessionExpiration
+    $this.PureOneToken = $org.pureOnetoken
+    $this.updateLock = $false
+    return 
+  }
 }
 #Global variables
 $global:pureOneRateLimit = $null
