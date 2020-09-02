@@ -342,7 +342,7 @@ function New-PureOneConnection {
     .INPUTS
       Pure1 Application ID, a certificate or a private key.
     .OUTPUTS
-      Does not return anything--it stores the Pure1 REST access token in a global variable called $Global:DefaultPureOneConnection. Valid for 10 hours.
+      Does not return anything--it stores the Pure1 REST access token in a global variable called $Global:PureOneConnections. Valid for 10 hours.
     .EXAMPLE
       PS C:\ $cert = New-PureOneCertificate
       PS C:\ $cert | New-PureOneConnection -pureAppID pure1:apikey:PZogg67LcjImYTiI
@@ -2073,7 +2073,7 @@ function Set-PureOneHeader {
           [Parameter(Position=0)]
           [string]$pureOneToken
   )
-    if (($null -eq $Global:DefaultPureOneConnection) -and ([string]::IsNullOrWhiteSpace($pureOneToken)))
+    if (($null -eq $Global:PureOneConnections) -and ([string]::IsNullOrWhiteSpace($pureOneToken)))
     {
         throw "No access token found in the global variable or passed in. Run the cmdlet New-PureOneRestConnection to authenticate."
     }
@@ -2081,7 +2081,8 @@ function Set-PureOneHeader {
         $pureOneHeader = @{authorization="Bearer $($pureOnetoken)"}
     }
     else {
-        $pureOneHeader = @{authorization="Bearer $($Global:DefaultPureOneConnection.pureOneToken)"} 
+        $foundDefaultOrg = $Global:PureOneConnections |Where-Object {$_.DefaultOrg -eq $true}
+        $pureOneHeader = @{authorization="Bearer $($foundDefaultOrg.pureOneToken)"} 
     }
     return $pureOneHeader
 }
