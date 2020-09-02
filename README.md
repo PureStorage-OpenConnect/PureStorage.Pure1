@@ -5,7 +5,7 @@
 <!-- /wp:paragraph -->
 
 <!-- wp:paragraph -->
-<p>The module is called <a href="https://www.powershellgallery.com/packages/PureStorage.Pure1">PureStorage.Pure1</a></p>
+<p>The module is called&nbsp;<a href="https://www.powershellgallery.com/packages/PureStorage.Pure1">PureStorage.Pure1</a></p>
 <!-- /wp:paragraph -->
 
 <!-- wp:paragraph -->
@@ -91,7 +91,7 @@ https://www.codyhosterman.com/2019/12/pure1-rest-api-authentication-made-easy/
 <!-- /wp:list -->
 
 <!-- wp:heading -->
-<h2>Latest version 1.2.0.0 (September 1st, 2020)</h2>
+<h2>Latest version 1.2.0.2 (September 1st, 2020)</h2>
 <!-- /wp:heading -->
 
 <!-- wp:paragraph -->
@@ -111,7 +111,7 @@ https://www.codyhosterman.com/2019/12/pure1-rest-api-authentication-made-easy/
 <!-- /wp:paragraph -->
 
 <!-- wp:list -->
-<ul><li>Improved error handling</li><li>Missing help examples</li></ul>
+<ul><li>Improved error handling</li><li><a href="https://github.com/PureStorage-OpenConnect/PureStorage.Pure1/issues/26" target="_blank" rel="noreferrer noopener">Fixed issue with New-PureOneOperation not terminating after failure (1.2.0.2)</a></li><li><a href="https://github.com/PureStorage-OpenConnect/PureStorage.Pure1/issues/25" target="_blank" rel="noreferrer noopener">Internal function to set REST header to JWT fails when not specifying token directly. (1.2.0.1)</a></li><li>Missing help examples</li></ul>
 <!-- /wp:list -->
 
 <!-- wp:paragraph -->
