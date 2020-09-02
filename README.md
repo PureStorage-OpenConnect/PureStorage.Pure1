@@ -91,7 +91,7 @@ https://www.codyhosterman.com/2019/12/pure1-rest-api-authentication-made-easy/
 <!-- /wp:list -->
 
 <!-- wp:heading -->
-<h2>Latest version 1.2.0.2 (September 1st, 2020)</h2>
+<h2>Latest version 1.2.0.2 (September 2nd, 2020)</h2>
 <!-- /wp:heading -->
 
 <!-- wp:paragraph -->
