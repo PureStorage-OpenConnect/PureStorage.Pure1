@@ -4,7 +4,7 @@
 	 Created by:   	Cody Hosterman
 	 Organization: 	Pure Storage, Inc.
 	 Filename:     	Cody.PureStorage.Pure1.psd1
-	 Version:		1.2.0.3
+	 Version:		1.3.0.0
 	 Copyright:		2020 Pure Storage, Inc.
 	-------------------------------------------------------------------------
 	 Module Name: PureStoragePure1PowerShell
@@ -30,7 +30,7 @@
 	RootModule = 'PureStorage.Pure1.psm1'
 	
 	# Version number of this module; major.minor[.build[.revision]]
-	ModuleVersion = '1.2.0.3'
+	ModuleVersion = '1.3.0.0'
 	
 	# ID used to uniquely identify this module
 	GUID = '65867a33-8c09-4651-8043-96c2f7ca2893'
@@ -84,7 +84,7 @@
 	NestedModules = @()
 	
 	# Functions to export from this module
-	FunctionsToExport = 'New-PureOneConnection','Get-PureOneArray','New-PureOneOperation','Get-PureOneArrayTag','Set-PureOneArrayTag','Remove-PureOneArrayTag','Get-PureOneArrayNetworking','Get-PureOneMetricDetail','Get-PureOneMetric','Get-PureOneVolume','Get-PureOnePod','Get-PureOneVolumeSnapshot','Get-PureOneFileSystem','Get-PureOneFileSystemSnapshot','Get-PureOneArrayLoadMeter','New-PureOneCertificate','Get-PureOnePublicKey','New-PureOneJwt'
+	FunctionsToExport = 'New-PureOneConnection','Get-PureOneArray','New-PureOneOperation','Get-PureOneArrayTag','Set-PureOneArrayTag','Remove-PureOneArrayTag','Get-PureOneArrayNetworking','Get-PureOneMetricDetail','Get-PureOneMetric','Get-PureOneVolume','Get-PureOnePod','Get-PureOneVolumeSnapshot','Get-PureOneFileSystem','Get-PureOneFileSystemSnapshot','Get-PureOneArrayLoadMeter','New-PureOneCertificate','Get-PureOnePublicKey','New-PureOneJwt','Get-PureOneAlert','Get-PureOneSupportContract'
 	
 	# Cmdlets to export from this module
 	CmdletsToExport = '*'

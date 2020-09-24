@@ -360,10 +360,10 @@ function New-PureOneConnection {
 
       Creates a Pure1 REST connection for use with additional Pure1 cmdlets.
     .NOTES
-      Version:        1.1
+      Version:        1.2
       Author:         Cody Hosterman https://codyhosterman.com
-      Creation Date:  08/29/2020
-      Purpose/Change: Core support
+      Creation Date:  09/24/2020
+      Purpose/Change: Discover default key
   
     *******Disclaimer:******************************************************
     This scripts are offered "as is" with no warranty.  While this 
@@ -374,38 +374,73 @@ function New-PureOneConnection {
     ************************************************************************
     #>
 
-    [CmdletBinding(DefaultParameterSetName='Certificate')]
+    [CmdletBinding(DefaultParameterSetName='AppID')]
     Param(
             [Parameter(Position=0,ValueFromPipeline=$True,mandatory=$True,ParameterSetName='Certificate')]
             [System.Security.Cryptography.X509Certificates.X509Certificate]$Certificate,
 
-            [Parameter(Position=1,mandatory=$True)]
+            [Parameter(Position=1,mandatory=$True,ParameterSetName='AppID')]
+            [Parameter(Position=1,mandatory=$True,ParameterSetName='PrivateKey')]
+            [Parameter(Position=1,mandatory=$True,ParameterSetName='Certificate')]
+            [Parameter(Position=1,mandatory=$True,ParameterSetName='Unix')]
             [string]$PureAppID,
             
             [Parameter(Position=2,ValueFromPipeline=$True,mandatory=$True,ParameterSetName='PrivateKey')]
             [System.Security.Cryptography.RSA]$PrivateKey,
 
-            [Parameter(Position=3)]
+            [Parameter(Position=3,ParameterSetName='AppID')]
+            [Parameter(Position=3,ParameterSetName='PrivateKey')]
+            [Parameter(Position=3,ParameterSetName='Certificate')]
+            [Parameter(Position=3,ParameterSetName='Unix')]
             [switch]$ReturnOrg,
 
-            [Parameter(Position=4,ParameterSetName='Unix',mandatory=$True)]
+            [Parameter(Position=4,ParameterSetName='Unix')]
             [string]$PrivateKeyFileLocation,
 
-            [Parameter(Position=5,ParameterSetName='Unix',mandatory=$True)]
+            [Parameter(Position=5,mandatory=$True,ParameterSetName='Unix')]
             [securestring]$RsaPassword
     )
-    if ([string]::IsNullOrEmpty($PrivateKeyFileLocation))
+    if (($isWindows -ne $true) -and ([string]::IsNullOrEmpty($RsaPassword)))
     {
+      $RsaPassword = Read-Host "Please enter in the password for your private key" -AsSecureString
+    }
+    if (($isWindows -eq $true) -or ($null -eq $isWindows))
+    {
+      if (($null -eq $certificate) -and ($null -eq $PrivateKey))
+      {
+        throw "Please pass in a certificate or RSA private key."
+      }
       if ($null -eq $certificate)
       {
-          $jwt = New-PureOneJwt -privateKey $privateKey -pureAppID $pureAppID -expiration ((Get-Date).AddSeconds(60))
+          $jwt = New-PureOneJwt -privateKey $privateKey -pureAppID $pureAppID -expiration ((Get-Date).AddSeconds(60)) -ErrorAction Stop
       }
-      else {
-          $jwt = New-PureOneJwt -certificate $certificate -pureAppID $pureAppID -expiration ((Get-Date).AddSeconds(60)) 
+      else 
+      {
+          $jwt = New-PureOneJwt -certificate $certificate -pureAppID $pureAppID -expiration ((Get-Date).AddSeconds(60)) -ErrorAction Stop
       }
     }
-    else {
-      $jwt = New-PureOneJwt -PrivateKeyFileLocation $PrivateKeyFileLocation -RsaPassword $RsaPassword -pureAppID $pureAppID -expiration ((Get-Date).AddSeconds(60))
+    else 
+    {
+      if (($isWindows -ne $true) -and ([string]::IsNullOrEmpty($PrivateKeyFileLocation)))
+      {
+        $keyPath = (Get-Location).Path
+        $checkPath = Test-Path "$($keyPath)/PureOnePrivate.pem"
+        if ($checkPath -eq $True)
+        {
+          $PrivateKeyFileLocation = "$($keyPath)/PureOnePrivate.pem"
+        }
+        else 
+        {
+          throw "No default private key found. Please pass in a private key file location or create a new one with New-PureOneCertificate."
+        }
+      }
+    }
+    try {
+      $jwt = New-PureOneJwt -PrivateKeyFileLocation $PrivateKeyFileLocation -RsaPassword $RsaPassword -pureAppID $pureAppID -expiration ((Get-Date).AddSeconds(60)) -ErrorAction Stop
+    }
+    catch
+    {
+     #throw ($_.errordetails.message |ConvertFrom-Json).error_description
     }
     $apiendpoint = "https://api.pure1.purestorage.com/oauth2/1.0/token"
     $AuthAction = @{
@@ -413,7 +448,12 @@ function New-PureOneConnection {
         subject_token = $jwt
         subject_token_type = "urn:ietf:params:oauth:token-type:jwt"
         }
-    $pureOnetoken = Invoke-RestMethod -Method Post -Uri $apiendpoint -ContentType "application/x-www-form-urlencoded" -Body $AuthAction
+    try {
+      $pureOnetoken = Invoke-RestMethod -Method Post -Uri $apiendpoint -ContentType "application/x-www-form-urlencoded" -Body $AuthAction -ErrorAction Stop
+    }
+    catch {
+      throw ($_.errordetails.message |ConvertFrom-Json).error_description
+    }
     write-debug $pureOnetoken
     $orgInfo = Resolve-JWTtoken -token $pureOnetoken
     $date = get-date "1/1/1970"
@@ -558,6 +598,204 @@ function New-PureOneOperation {
   }   
   $ErrorActionPreference = "Continue"
   return $pureObjects
+}
+function Get-PureOneSupportContract {
+  <#
+  .SYNOPSIS
+    Returns all support contracts listed in your Pure1 account.
+  .DESCRIPTION
+    Returns all support contracts listed in your Pure1 account. Allows for some filters.
+  .INPUTS
+    None required. Optional inputs are array name and Pure1 access token.
+  .OUTPUTS
+    Returns the support contract information in Pure1.
+  .EXAMPLE
+    PS C:\ Get-PureOneSupportContract
+
+    Returns all support contracts from all arrays in all connected Pure1 organizations
+  .EXAMPLE
+    PS C:\ Get-PureOneSupportContract -arrayId ef9d6965-7e16-4d46-9425-d2fea48a8fe5
+
+    Returns the support contract from the specified array ID
+  .EXAMPLE
+    PS C:\ Get-PureOneSupportContract -arrayName sn1-m20r2-c05-36
+
+    Returns the support contract from the specified array
+  .NOTES
+    Version:        1.0
+    Author:         Cody Hosterman https://codyhosterman.com
+    Creation Date:  09/23/2020
+    Purpose/Change: First release
+
+  *******Disclaimer:******************************************************
+  This scripts are offered "as is" with no warranty.  While this 
+  scripts is tested and working in my environment, it is recommended that you test 
+  this script in a test lab before using in a production environment. Everyone can 
+  use the scripts/commands provided here without any written permission but I
+  will not be liable for any damage or loss to the system.
+  ************************************************************************
+  #>
+
+  [CmdletBinding(DefaultParameterSetName='OrgProduct')]
+  Param(
+          [Parameter(Position=0,ParameterSetName='Name',mandatory=$True)]
+          [string]$ArrayName,
+          
+          [Parameter(Position=1,ParameterSetName='ID',mandatory=$True)]
+          [string]$ArrayId,
+
+          [Parameter(Position=2)]
+          [string]$PureOneToken,
+
+          [Parameter(Position=3)]
+          [PureOneOrganization[]]$PureOneOrganization
+  )
+    $restQuery = "?filter="
+    if ($arrayName -ne "")
+    {
+        $restQuery = $restQuery + "resource.name=`'$($arrayName)`'"
+    }
+    if ($arrayId -ne "")
+    {
+        $restQuery = $restQuery + "resource.id=`'$($arrayId)`'"
+    }
+    if ($restQuery -eq "?filter=")
+    {
+      $restQuery = $null
+    }
+    $tokens = @()
+    if ([string]::IsNullOrWhiteSpace($pureOneToken))
+    {
+      $tokens += Get-PureOneToken -pureOneOrganization $pureOneOrganization
+    }
+    else{
+      $tokens += $pureOneToken
+    }
+    $pureContracts = @()
+    foreach ($token in $tokens) {
+      $pureContracts += New-PureOneOperation -resourceType arrays/support-contracts -queryFilter $restQuery -pureOneToken $token -restOperationType GET -ErrorAction SilentlyContinue
+    }
+    foreach ($pureContract in $pureContracts) {
+      $epochTime = New-Object -Type DateTime -ArgumentList 1970, 1, 1, 0, 0, 0, 0
+      $pureContract.start_date  = $epochTime.AddmilliSeconds($pureContract.start_date)
+      $epochTime = New-Object -Type DateTime -ArgumentList 1970, 1, 1, 0, 0, 0, 0
+      $pureContract.end_date  = $epochTime.AddmilliSeconds($pureContract.end_date)
+    }
+    $contracts = $pureContracts |Select-Object @{N="ID";E={$_.Resource.ID}}, @{N="Name";E={$_.Resource.Name}},@{N="Resource_Type";E={$_.Resource.resource_type}},@{N="FQDN";E={$_.Resource.fqdn}},start_date,end_date
+    return $contracts    
+}
+function Get-PureOneAlert {
+  <#
+  .SYNOPSIS
+    Returns all Pure Storage alerts listed in your Pure1 account.
+  .DESCRIPTION
+    Returns all Pure Storage alerts listed in your Pure1 account. Allows for some filters.
+  .INPUTS
+    None required. Optional inputs are array type, array name, and Pure1 access token.
+  .OUTPUTS
+    Returns the alert information in Pure1.
+  .EXAMPLE
+    PS C:\ Get-PureOneAlert
+
+    Returns all open alerts from all arrays in all connected Pure1 organizations
+  .EXAMPLE
+    PS C:\ Get-PureOneAlert -closed
+
+    Returns all closed alerts from all arrays in all connected Pure1 organizations
+  .EXAMPLE
+    PS C:\ Get-PureOneAlert -Severity Warning
+
+    Returns all alerts of severity level "warning" from all arrays in all connected Pure1 organizations
+  .EXAMPLE
+    PS C:\ Get-PureOneAlert -arrayId ef9d6965-7e16-4d46-9425-d2fea48a8fe5
+
+    Returns alerts from the specified array ID
+  .EXAMPLE
+    PS C:\ Get-PureOneAlert -arrayName sn1-m20r2-c05-36
+
+    Returns alerts from the specified array
+  .NOTES
+    Version:        1.1
+    Author:         Cody Hosterman https://codyhosterman.com
+    Creation Date:  08/29/2020
+    Purpose/Change: Core support
+
+  *******Disclaimer:******************************************************
+  This scripts are offered "as is" with no warranty.  While this 
+  scripts is tested and working in my environment, it is recommended that you test 
+  this script in a test lab before using in a production environment. Everyone can 
+  use the scripts/commands provided here without any written permission but I
+  will not be liable for any damage or loss to the system.
+  ************************************************************************
+  #>
+
+  [CmdletBinding(DefaultParameterSetName='OrgProduct')]
+  Param(
+          [Parameter(Position=0,ParameterSetName='Name',mandatory=$True)]
+          [string]$ArrayName,
+          
+          [Parameter(Position=1,ParameterSetName='ID',mandatory=$True)]
+          [string]$ArrayId,
+
+          [Parameter(Position=2)]
+          [switch]$Closed,
+
+          [Parameter(Position=3)]
+          [ValidateSet('hidden','warning','critical','info')]
+          [string]$Severity,
+
+          [Parameter(Position=4)]
+          [string]$PureOneToken,
+
+          [Parameter(Position=5)]
+          [PureOneOrganization[]]$PureOneOrganization
+  )
+    $restQuery = "?filter="
+    if ($arrayName -ne "")
+    {
+        $restQuery = $restQuery + "arrays.name=`'$($arrayName)`'"
+    }
+    if ($arrayId -ne "")
+    {
+        $restQuery = $restQuery + "arrays.id=`'$($arrayId)`'"
+    }
+    if ($Severity -ne "")
+    {
+        if ($restQuery -ne "?filter=")
+        {
+          $restQuery = $restQuery + " and severity=`'$($Severity)`'"
+        }
+        else {
+          $restQuery = $restQuery + "severity=`'$($Severity)`'"
+        }
+    }
+    if ($Closed -eq $true)
+    {
+      $desiredStatus = "closed"
+    }
+    else {
+      $desiredStatus = "open"
+    }
+    if ($restQuery -ne "?filter=")
+    {
+      $restQuery = $restQuery + " and state=`'$($desiredStatus)`'"
+    }
+    else {
+      $restQuery = $restQuery + "state=`'$($desiredStatus)`'"
+    }
+    $tokens = @()
+    if ([string]::IsNullOrWhiteSpace($pureOneToken))
+    {
+      $tokens += Get-PureOneToken -pureOneOrganization $pureOneOrganization
+    }
+    else{
+      $tokens += $pureOneToken
+    }
+    $pureArrays = @()
+    foreach ($token in $tokens) {
+      $pureArrays += New-PureOneOperation -resourceType alerts -queryFilter $restQuery -pureOneToken $token -restOperationType GET -ErrorAction SilentlyContinue
+    }
+    return $pureArrays    
 }
 function Get-PureOneArray {
     <#
