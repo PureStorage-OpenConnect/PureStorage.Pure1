@@ -91,7 +91,31 @@ https://www.codyhosterman.com/2019/12/pure1-rest-api-authentication-made-easy/
 <!-- /wp:list -->
 
 <!-- wp:heading -->
-<h2>Latest version 1.2.0.3 (September 2nd, 2020)</h2>
+<h2>Latest version 1.3.0.0 (September 24th, 2020)</h2>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>See  version details: <a href="https://github.com/PureStorage-OpenConnect/PureStorage.Pure1/projects/3">https://github.com/PureStorage-OpenConnect/PureStorage.Pure1/projects/3</a></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph -->
+<p><strong>New features:</strong></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:list -->
+<ul><li><a href="https://github.com/PureStorage-OpenConnect/PureStorage.Pure1/issues/32">Auto-discovery of default private key on Unix platforms. </a></li><li>New cmdlet: <a href="https://github.com/PureStorage-OpenConnect/PureStorage.Pure1/issues/28">pull all array alerts Get-PureOneAlert</a></li><li>New cmdlet: <a href="https://github.com/PureStorage-OpenConnect/PureStorage.Pure1/issues/31">pull all support contracts Get-PureOneSupportContract</a></li></ul>
+<!-- /wp:list -->
+
+<!-- wp:paragraph -->
+<p><strong>Bug Fixes:</strong></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:list -->
+<ul><li><a href="https://github.com/PureStorage-OpenConnect/PureStorage.Pure1/issues/30">Issue where new-pureoneconnection was not terminating upon first error</a></li></ul>
+<!-- /wp:list -->
+
+<!-- wp:heading -->
+<h2>Previous version 1.2.0.3 (September 1st, 2020)</h2>
 <!-- /wp:heading -->
 
 <!-- wp:paragraph -->
@@ -119,7 +143,7 @@ https://www.codyhosterman.com/2019/12/pure1-rest-api-authentication-made-easy/
 <!-- /wp:paragraph -->
 
 <!-- wp:list -->
-<ul><li>New-PureOneCertificate</li><li>Get-PureOnePublicKey</li><li>New-PureOneJwt</li><li>New-PureOneConnection </li><li>Get-PureOneArrays </li><li>New-PureOneOperation </li><li>Get-PureOneArrayTags </li><li>Set-PureOneArrayTags </li><li>Remove-PureOneArrayTags </li><li>Get-PureOneArrayNetworking </li><li>Get-PureOneMetricDetails </li><li>Get-PureOneMetrics </li><li>Get-PureOneVolumes </li><li>Get-PureOnePods </li><li>Get-PureOneVolumeSnapshots </li><li>Get-PureOneFileSystems </li><li>Get-PureOneFileSystemSnapshots </li><li>Get-PureOneArrayBusyMeter</li></ul>
+<ul><li>New-PureOneCertificate</li><li>Get-PureOnePublicKey</li><li>New-PureOneJwt</li><li>New-PureOneConnection </li><li>Get-PureOneArrays</li><li>New-PureOneOperation </li><li>Get-PureOneArrayTag</li><li>Set-PureOneArrayTag</li><li>Remove-PureOneArrayTag</li><li>Get-PureOneArrayNetworking </li><li>Get-PureOneMetricDetail</li><li>Get-PureOneMetric</li><li>Get-PureOneVolume</li><li>Get-PureOnePod</li><li>Get-PureOneVolumeSnapshot</li><li>Get-PureOneFileSystem</li><li>Get-PureOneFileSystemSnapshot</li><li>Get-PureOneArrayBusyMeter</li><li>Get-PureOneAlert</li><li>Get-PureOneSupportContract</li></ul>
 <!-- /wp:list -->
 
 <!-- wp:paragraph -->
