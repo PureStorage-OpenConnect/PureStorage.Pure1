@@ -234,15 +234,15 @@ function New-PureOneJwt {
     ************************************************************************
     #>
 
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName='WindowsCert')]
     Param(
-            [Parameter(Position=0,ValueFromPipeline=$True,ParameterSetName='Windows')]
+            [Parameter(Position=0,mandatory=$True,ValueFromPipeline=$True,ParameterSetName='WindowsCert')]
             [System.Security.Cryptography.X509Certificates.X509Certificate]$Certificate,
 
             [Parameter(Position=1,mandatory=$True)]
             [string]$PureAppID,
             
-            [Parameter(Position=2,ValueFromPipeline=$True,ParameterSetName='Windows')]
+            [Parameter(Position=2,mandatory=$True,ParameterSetName='WindowsKey')]
             [System.Security.Cryptography.RSA]$PrivateKey,
 
             [Parameter(Position=3,ValueFromPipeline=$True)]
