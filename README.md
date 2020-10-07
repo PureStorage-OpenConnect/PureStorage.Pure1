@@ -91,7 +91,7 @@ https://www.codyhosterman.com/2019/12/pure1-rest-api-authentication-made-easy/
 <!-- /wp:list -->
 
 <!-- wp:heading -->
-<h2>Latest version 1.3.0.0 (September 24th, 2020)</h2>
+<h2>Latest version 1.3.0.1 (October 7th, 2020)</h2>
 <!-- /wp:heading -->
 
 <!-- wp:paragraph -->
@@ -112,6 +112,7 @@ https://www.codyhosterman.com/2019/12/pure1-rest-api-authentication-made-easy/
 
 <!-- wp:list -->
 <ul><li><a href="https://github.com/PureStorage-OpenConnect/PureStorage.Pure1/issues/30">Issue where new-pureoneconnection was not terminating upon first error</a></li></ul>
+<ul><li><a href="https://github.com/PureStorage-OpenConnect/PureStorage.Pure1/issues/33">Issue where pipelining is broken for certificates with New-PureOneJwt</a></li></ul>
 <!-- /wp:list -->
 
 <!-- wp:heading -->
