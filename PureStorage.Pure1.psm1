@@ -169,7 +169,7 @@ function Set-PureOneDefaultCertificate {
     {
       $Certificate = Get-ChildItem -Path ($CertificateStore + "\" + $CertificateThumbprint) -ErrorAction Stop
     }
-    $certs = Get-ChildItem -Path $cert.PSParentPath
+    $certs = Get-ChildItem -Path $Certificate.PSParentPath
     foreach ($eachCert in $certs) 
     {
       if ($Certificate.Thumbprint -eq $eachCert.Thumbprint)
