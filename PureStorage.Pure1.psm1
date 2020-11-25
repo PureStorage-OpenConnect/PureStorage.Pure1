@@ -1,3 +1,204 @@
+function Get-PureOneCertificate {
+  <#
+  .SYNOPSIS
+    Returns the Windows Certificate or RSA Private Key used for Pure1 Authentication.
+  .DESCRIPTION
+    Returns the default Pure1 certificate or key. Or returns the specified certificate object if a non-default one is used.
+  .INPUTS
+    Certificate store (optional), certificate thumbrint (optional)
+  .OUTPUTS
+    Returns the certificate object or private key path
+  .EXAMPLE
+    PS C:\ Get-PureOneCertificate
+
+    Returns the default Pure1 certificate in the default certificiate store cert:\currentuser\my or the Default Private Key path if using Linux or MacOS
+  .EXAMPLE
+    PS C:\ Get-PureOneCertificate -certificateStore cert:\localmachine\my
+
+    Windows only: Returns the default Pure1 certificate in the certificiate store cert:\localmachine\my
+  .EXAMPLE
+    PS C:\ Get-PureOneCertificate -CertificateThumbprint 3ED3EB9BF753849820CFF43B2444100D334B60DD
+
+    Windows only: Returns the Pure1 certificate with the specified thumbprint in the default certificiate store cert:\currentuser\my
+  .EXAMPLE
+    PS C:\ Get-PureOneCertificate -certificateStore cert:\localmachine\my -CertificateThumbprint 3ED3EB9BF753849820CFF43B2444100D334B60DD
+
+    Windows only: Returns the Pure1 certificate with the specified thumbprint in the specified certificiate store
+  .NOTES
+    Version:        1.0
+    Author:         Cody Hosterman https://codyhosterman.com
+    Creation Date:  11/11/2020
+    Purpose/Change: Initial Release
+
+  *******Disclaimer:******************************************************
+  This scripts are offered "as is" with no warranty.  While this 
+  scripts is tested and working in my environment, it is recommended that you test 
+  this script in a test lab before using in a production environment. Everyone can 
+  use the scripts/commands provided here without any written permission but I
+  will not be liable for any damage or loss to the system.
+  ************************************************************************
+  #>
+
+  [CmdletBinding()]
+  Param(
+          [Parameter(Position=0)]
+          [String]$CertificateStore,
+
+          [Parameter(Position=1)]
+          [String]$CertificateThumbprint
+  )
+  if ($IsWindows -eq $false)
+  {
+    if (![string]::IsNullOrEmpty($CertificateStore))
+    {
+      throw "The use of the CertificateStore parameter is only valid for Windows."
+    }
+    if (![string]::IsNullOrEmpty($CertificateThumbprint))
+    {
+      throw "The use of the CertificateThumbprint parameter is only valid for Windows."
+    }
+    $PrivateKeyFilePath = (Get-Location).Path + "/PureOnePrivate.pem"
+    $checkPath = Test-Path $PrivateKeyFilePath
+    if ($checkPath -eq $true)
+    {
+      return $PrivateKeyFilePath
+    }
+    else {
+        throw "Key not found at the default location of $($PrivateKeyFilePath). Please create a new one with New-PureOneCertificate. If a custom path is used, there is no need for this cmdlet. Instead specify the custom path for subsequent cmds."
+    }
+  }
+  else {
+    if ([string]::IsNullOrEmpty($CertificateStore))
+    {
+      $CertificateStore = "cert:\currentuser\my"
+    }
+    if ([string]::IsNullOrEmpty($CertificateThumbprint))
+    {
+      $cert = Get-ChildItem -Path $CertificateStore |where-object {$_.FriendlyName -eq "Default Pure1 REST API Certificate"}
+      if ($cert.Count -gt 1)
+      {
+        throw "More than one default certificate was found in the specified certificate store (a certificate that has the friendly name of `"Default Pure1 REST API Certificate`")."
+      }
+      if ($null -eq $cert)
+      {
+        throw "No default certificate found in the specified certificate store (a certificate that has the friendly name of `"Default Pure1 REST API Certificate`")."
+      }
+      else {
+        return $cert
+      }
+    }
+    else {
+      $cert = Get-ChildItem -Path ($CertificateStore + "\" + $CertificateThumbprint) -ErrorAction Stop
+      return $cert
+    }
+  }
+}
+function Set-PureOneDefaultCertificate {
+  <#
+  .SYNOPSIS
+    Returns the Windows Certificate or RSA Private Key used for Pure1 Authentication.
+  .DESCRIPTION
+    Returns the default Pure1 certificate or key. Or returns the specified certificate object if a non-default one is used.
+  .INPUTS
+    Certificate store (optional), certificate thumbrint (optional)
+  .OUTPUTS
+    Returns the certificate object or private key path
+  .EXAMPLE
+    PS C:\ Get-PureOneCertificate
+
+    Returns the default Pure1 certificate in the default certificiate store cert:\currentuser\my or the Default Private Key path if using Linux or MacOS
+  .EXAMPLE
+    PS C:\ Get-PureOneCertificate -certificateStore cert:\localmachine\my
+
+    Windows only: Returns the default Pure1 certificate in the certificiate store cert:\localmachine\my
+  .EXAMPLE
+    PS C:\ Get-PureOneCertificate -CertificateThumbprint 3ED3EB9BF753849820CFF43B2444100D334B60DD
+
+    Windows only: Returns the Pure1 certificate with the specified thumbprint in the default certificiate store cert:\currentuser\my
+  .EXAMPLE
+    PS C:\ Get-PureOneCertificate -certificateStore cert:\localmachine\my -CertificateThumbprint 3ED3EB9BF753849820CFF43B2444100D334B60DD
+
+    Windows only: Returns the Pure1 certificate with the specified thumbprint in the specified certificiate store
+  .NOTES
+    Version:        1.0
+    Author:         Cody Hosterman https://codyhosterman.com
+    Creation Date:  11/11/2020
+    Purpose/Change: Initial Release
+
+  *******Disclaimer:******************************************************
+  This scripts are offered "as is" with no warranty.  While this 
+  scripts is tested and working in my environment, it is recommended that you test 
+  this script in a test lab before using in a production environment. Everyone can 
+  use the scripts/commands provided here without any written permission but I
+  will not be liable for any damage or loss to the system.
+  ************************************************************************
+  #>
+
+  [CmdletBinding(SupportsShouldProcess=$true,ConfirmImpact='High')]
+  Param(
+        [Parameter(Position=0,ValueFromPipeline=$True,mandatory=$True,ParameterSetName='Certificate')]
+        [System.Security.Cryptography.X509Certificates.X509Certificate]$Certificate,
+
+        [Parameter(Position=0,ParameterSetName='Thumbprint')]
+        [String]$CertificateStore,
+
+        [Parameter(Position=1,mandatory=$True,ParameterSetName='Thumbprint')]
+        [String]$CertificateThumbprint
+  )
+  Begin {
+    $checkForOneCert = $false
+    if (($IsLinux -eq $true) -or ($IsMacOS -eq $true))
+    {
+      throw "This cmdlet is only valid/relevant for Windows-based installations of PowerShell."
+    }
+  }
+  Process {
+    if ($checkForOneCert -eq $false)
+    {
+      $checkForOneCert = $True
+    }
+    else {
+      throw "Please only pass in one certificate at a time. More than one found in the pipelined input for parameter Certificate."
+    }
+  }
+  End {
+    if ([string]::IsNullOrEmpty($CertificateStore))
+    {
+      $CertificateStore = "cert:\currentuser\my"
+    }
+    if ([string]::IsNullOrEmpty($Certificate))
+    {
+      $Certificate = Get-ChildItem -Path ($CertificateStore + "\" + $CertificateThumbprint) -ErrorAction Stop
+    }
+    $certs = Get-ChildItem -Path $cert.PSParentPath
+    foreach ($eachCert in $certs) 
+    {
+      if ($Certificate.Thumbprint -eq $eachCert.Thumbprint)
+      {
+        continue
+      }
+      if ($eachCert.FriendlyName -eq "Default Pure1 REST API Certificate")
+      {
+        $foundCert = $eachCert
+        break
+      }
+    }
+    if ($null -ne $foundCert)
+    {
+      $confirmText = "A default certificate is already found with the thumbprint of $($foundCert.Thumbprint). Remove this certificate as default and set $($Certificate.Thumbprint) as the default?"
+      if ($PSCmdlet.ShouldProcess("","$($confirmText)`n`r","Setting $($Certificate.Thumbprint) as the default. `n`r")) 
+      {
+        (Get-ChildItem -Path $foundCert.PSPath).FriendlyName = $null  |Out-Null
+        ((Get-ChildItem -Path $Certificate.PSPath).FriendlyName = "Default Pure1 REST API Certificate") |Out-Null
+        return $Certificate
+      }
+    }
+    else {
+      ((Get-ChildItem -Path $Certificate.PSPath).FriendlyName = "Default Pure1 REST API Certificate")  |Out-Null
+      return $Certificate
+    }
+  }
+}
 function New-PureOneCertificate {
     <#
     .SYNOPSIS
@@ -50,32 +251,35 @@ function New-PureOneCertificate {
             [Parameter(Position=1,ParameterSetName='RSAPair',mandatory=$True)]
             [SecureString]$RsaPassword,
             
-            [Parameter(Position=2,ParameterSetName='RSAPair')]
+            [Parameter(Position=2)]
             [Switch]$Overwrite,
 
             [Parameter(Position=3,ParameterSetName='RSAPair')]
-            [String]$PrivateKeyFileDirectory
+            [String]$PrivateKeyFileDirectory,
+
+            [Parameter(Position=3,ParameterSetName='Certificate')]
+            [Switch]$NonDefault
     )
-    if ([string]::IsNullOrEmpty($PrivateKeyFileDirectory))
-    {
-      $keyPath = (Get-Location).Path
-    }
-    else {
-      if ((Test-Path -Path $PrivateKeyFileDirectory) -eq $false)
-      {
-        throw "Entered path $($PrivateKeyFileDirectory) is not valid. Please enter a valid directory. For example, /home/user"
-      }
-      else {
-        $keyPath = $PrivateKeyFileDirectory
-      }
-    }
-    $checkPath = Test-Path "$($keyPath)/PureOnePrivate.pem"
-    if (($checkPath -eq $true) -and ($Overwrite -eq $false))
-    {
-      throw "A pre-existing Pure1 Private Key exists at $($keyPath)/PureOnePrivate.pem. Overwriting this key will require a new application ID to be generated for the new key in Pure1. Either re-run with the -overwrite switch, or specify a different directory in the -keypath parameter, or skip this cmdlet and pass in the path of your custom key location to New-PureOneConnection."
-    }
     if ($IsWindows -eq $false)
     {
+      if ([string]::IsNullOrEmpty($PrivateKeyFileDirectory))
+      {
+        $keyPath = (Get-Location).Path
+      }
+      else {
+        if ((Test-Path -Path $PrivateKeyFileDirectory) -eq $false)
+        {
+          throw "Entered path $($PrivateKeyFileDirectory) is not valid. Please enter a valid directory. For example, /home/user"
+        }
+        else {
+          $keyPath = $PrivateKeyFileDirectory
+        }
+      }
+      $checkPath = Test-Path "$($keyPath)/PureOnePrivate.pem"
+      if (($checkPath -eq $true) -and ($Overwrite -eq $false))
+      {
+        throw "A pre-existing Pure1 Private Key exists at $($keyPath)/PureOnePrivate.pem. Overwriting this key will require a new application ID to be generated for the new key in Pure1. Either re-run with the -overwrite switch, or specify a different directory in the -keypath parameter, or skip this cmdlet and pass in the path of your custom key location to New-PureOneConnection."
+      }
       if ($RsaPassword.Length -eq 0)
       {
         $RsaPassword = Read-Host -Prompt "Please enter a password to be used for the private key" -AsSecureString
@@ -106,6 +310,29 @@ function New-PureOneCertificate {
           $CertObj = New-SelfSignedCertificate -certstorelocation $certificateStore -HashAlgorithm "SHA256" -KeyLength 2048 -KeyAlgorithm RSA -KeyUsage DigitalSignature  -KeyExportPolicy $policies -Subject "PureOneCert" -ErrorAction Stop   
       }
       $cert = Get-ChildItem -Path $CertObj.PSPath
+      if ($NonDefault -eq $false)
+      {
+        $certs = Get-ChildItem -Path $cert.PSParentPath
+        foreach ($eachCert in $certs) 
+        {
+          if ($cert.Thumbprint -eq $eachCert.Thumbprint)
+          {
+            continue
+          }
+          if ($eachCert.FriendlyName -eq "Default Pure1 REST API Certificate")
+          {
+            $foundCert = $eachCert
+            break
+          }
+        }
+        if (($null -ne $foundCert) -and ($Overwrite -ne $true))
+        {
+          $cert = Set-PureOneDefaultCertificate -Certificate $cert -Confirm:$true
+        }
+        else {
+          $cert = Set-PureOneDefaultCertificate -Certificate $cert -Confirm:$false
+        }
+      }
       return $cert
     }
 }
@@ -166,27 +393,35 @@ function Get-PureOnePublicKey {
         [Parameter(Position=2,ParameterSetName='RSAPair',mandatory=$True)]
         [securestring]$RsaPassword
     )
-    if ($null -eq $certificate)
-    {
-      $checkPath = Test-Path $PrivateKeyFileLocation
-      if ($checkPath -eq $false)
-      {
-        throw "File not found at $($PrivateKeyFileLocation). Check path and try again."
-      }
-      $DecryptedRsaPassword = ConvertFrom-SecureString $RsaPassword -AsPlainText
-      openssl rsa -in $($PrivateKeyFileLocation) -outform PEM -pubout -out ./PureOnePublicTemp.pem -passin pass:$DecryptedRsaPassword  2>/dev/null
-      $checkPath = Test-Path ./PureOnePublicTemp.pem
-      if ($checkPath -eq $false)
-      {
-        throw "Public key could not be generated. Confirm password and/or permission access to private key"
-      }
-      $publicKey = Get-Content ./PureOnePublicTemp.pem
-      Remove-Item -Path ./PureOnePublicTemp.pem
-      Return $publicKey
+    Begin {
+      $publicKeys = @()
     }
-    else {
-     $certRaw = ([System.Convert]::ToBase64String($certificate.PublicKey.EncodedKeyValue.RawData)).tostring()
-      return ("-----BEGIN PUBLIC KEY-----`n" + "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A" + $certRaw + "`n-----END PUBLIC KEY-----")
+    Process {
+      if ($null -eq $certificate)
+      {
+        $checkPath = Test-Path $PrivateKeyFileLocation
+        if ($checkPath -eq $false)
+        {
+          throw "File not found at $($PrivateKeyFileLocation). Check path and try again."
+        }
+        $DecryptedRsaPassword = ConvertFrom-SecureString $RsaPassword -AsPlainText
+        openssl rsa -in $($PrivateKeyFileLocation) -outform PEM -pubout -out ./PureOnePublicTemp.pem -passin pass:$DecryptedRsaPassword  2>/dev/null
+        $checkPath = Test-Path ./PureOnePublicTemp.pem
+        if ($checkPath -eq $false)
+        {
+          throw "Public key could not be generated. Confirm password and/or permission access to private key"
+        }
+        $publicKey = Get-Content ./PureOnePublicTemp.pem
+        Remove-Item -Path ./PureOnePublicTemp.pem
+        $publicKeys += $publicKey
+      }
+      else {
+      $certRaw = ([System.Convert]::ToBase64String($certificate.PublicKey.EncodedKeyValue.RawData)).tostring()
+      $publicKeys += ("-----BEGIN PUBLIC KEY-----`n" + "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A" + $certRaw + "`n-----END PUBLIC KEY-----")
+      }
+    }
+    End {
+      return $publicKeys
     }
 }
 function New-PureOneJwt {
@@ -254,84 +489,98 @@ function New-PureOneJwt {
             [Parameter(Position=5,ParameterSetName='Unix',mandatory=$True)]
             [securestring]$RsaPassword
     )
-    if (($null -eq $isWindows) -or ($isWindows -eq $true))
-    {
-      if (($null -eq $privateKey) -and ($null -eq $certificate))
+    Begin {
+      $checkForOneCert = $false
+    }
+    Process {
+      if ($checkForOneCert -eq $false)
       {
-          throw "You must pass in a x509 certificate or a RSA Private Key"
+        $checkForOneCert = $True
       }
-      #checking for certificate accuracy
-      if ($null -ne $certificate)
-      {
-          if ($certificate.HasPrivateKey -ne $true)
-          {
-              throw "There is no private key associated with this certificate. Please regenerate certificate with a private key."
-          }
-          if ($null -ne $certificate.PrivateKey)
-          {
-              $privateKey = $certificate.PrivateKey
-          }
-          else {
-              try {
-                  $privateKey = [System.Security.Cryptography.X509Certificates.RSACertificateExtensions]::GetRSAPrivateKey($certificate)
-              }
-              catch {
-                  throw "Could not obtain the private key from the certificate. Please re-run this cmdlet from a PowerShell session started with administrative rights or ensure you have Read Only or higher rights to the certificate."
-              }
-          }
-      }
-      #checking for correct private key type. Must be SHA-256, 2048 bit.
-      if ($null -ne $privateKey)
-      {
-          if ($privateKey.KeySize -ne 2048)
-          {
-              throw "The key must be 2048 bit. It is currently $($privateKey.KeySize)"
-          }
-          if ($privateKey.SignatureAlgorithm -ne "RSA")
-          {
-              throw "This key is not an RSA-based key."
-          }
+      else {
+        throw "Please only pass in one certificate at a time. More than one found in the pipelined input for parameter Certificate."
       }
     }
-    $pureHeader = '{"alg":"RS256","typ":"JWT"}'
-    $curTime = (Get-Date).ToUniversalTime()
-    $curTime = [Math]::Floor([decimal](Get-Date($curTime) -UFormat "%s"))
-    if ($null -eq $expiration)
-    {
-        $expTime = $curTime  + 2592000
-    }
-    else {
-        $expTime = $expiration.ToUniversalTime()
-        $expTime = [Math]::Floor([decimal](Get-Date($expTime) -UFormat "%s"))
-    }
-    $payloadJson = '{"iss":"' + $pureAppID + '","iat":' + $curTime + ',"exp":' + $expTime + '}'
-    $encodedHeader = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($pureHeader)) -replace '\+','-' -replace '/','_' -replace '='
-    $encodedPayload = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($payloadJson)) -replace '\+','-' -replace '/','_' -replace '='
-    $toSign = $encodedHeader + '.' + $encodedPayload
-    if ($IsWindows -eq $false) {
-        if ($RsaPassword.Length -eq 0)
+    End {
+      if (($null -eq $isWindows) -or ($isWindows -eq $true))
+      {
+        if (($null -eq $privateKey) -and ($null -eq $certificate))
         {
-          $RsaPassword = Read-Host -Prompt "Please enter a password to be used for the private key" -AsSecureString
+            throw "You must pass in a x509 certificate or a RSA Private Key"
         }
-        $DecryptedRsaPassword = ConvertFrom-SecureString $RsaPassword -AsPlainText
-        set-content -value $tosign -Path ./PureOneHeader.txt -NoNewline
-        Start-Process -FilePath ./openssl -ArgumentList "dgst -binary -sha256 -sign $($PrivateKeyFileLocation) -passin pass:$($DecryptedRsaPassword) -out ./PureOneSignedHeader.txt ./PureOneHeader.txt"
-        $signature = openssl base64 -in ./PureOneSignedHeader.txt
-        if ($null -eq $signature)
+        #checking for certificate accuracy
+        if ($null -ne $certificate)
         {
-          #sometimes this needs retried, honestly not sure why.
+            if ($certificate.HasPrivateKey -ne $true)
+            {
+                throw "There is no private key associated with this certificate. Please regenerate certificate with a private key."
+            }
+            if ($null -ne $certificate.PrivateKey)
+            {
+                $privateKey = $certificate.PrivateKey
+            }
+            else {
+                try {
+                    $privateKey = [System.Security.Cryptography.X509Certificates.RSACertificateExtensions]::GetRSAPrivateKey($certificate)
+                }
+                catch {
+                    throw "Could not obtain the private key from the certificate. Please re-run this cmdlet from a PowerShell session started with administrative rights or ensure you have Read Only or higher rights to the certificate."
+                }
+            }
+        }
+        #checking for correct private key type. Must be SHA-256, 2048 bit.
+        if ($null -ne $privateKey)
+        {
+            if ($privateKey.KeySize -ne 2048)
+            {
+                throw "The key must be 2048 bit. It is currently $($privateKey.KeySize)"
+            }
+            if ($privateKey.SignatureAlgorithm -ne "RSA")
+            {
+                throw "This key is not an RSA-based key."
+            }
+        }
+      }
+      $pureHeader = '{"alg":"RS256","typ":"JWT"}'
+      $curTime = (Get-Date).ToUniversalTime()
+      $curTime = [Math]::Floor([decimal](Get-Date($curTime) -UFormat "%s"))
+      if ($null -eq $expiration)
+      {
+          $expTime = $curTime  + 2592000
+      }
+      else {
+          $expTime = $expiration.ToUniversalTime()
+          $expTime = [Math]::Floor([decimal](Get-Date($expTime) -UFormat "%s"))
+      }
+      $payloadJson = '{"iss":"' + $pureAppID + '","iat":' + $curTime + ',"exp":' + $expTime + '}'
+      $encodedHeader = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($pureHeader)) -replace '\+','-' -replace '/','_' -replace '='
+      $encodedPayload = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($payloadJson)) -replace '\+','-' -replace '/','_' -replace '='
+      $toSign = $encodedHeader + '.' + $encodedPayload
+      if ($IsWindows -eq $false) {
+          if ($RsaPassword.Length -eq 0)
+          {
+            $RsaPassword = Read-Host -Prompt "Please enter a password to be used for the private key" -AsSecureString
+          }
+          $DecryptedRsaPassword = ConvertFrom-SecureString $RsaPassword -AsPlainText
+          set-content -value $tosign -Path ./PureOneHeader.txt -NoNewline
+          Start-Process -FilePath ./openssl -ArgumentList "dgst -binary -sha256 -sign $($PrivateKeyFileLocation) -passin pass:$($DecryptedRsaPassword) -out ./PureOneSignedHeader.txt ./PureOneHeader.txt"
           $signature = openssl base64 -in ./PureOneSignedHeader.txt
-        }
-        $signature = $signature -replace '\+','-' -replace '/','_' -replace '='
-        Remove-Item -Path ./PureOneSignedHeader.txt
-        Remove-Item -Path ./PureOneHeader.txt
-    }
-    else {
-      $toSignEncoded = [System.Text.Encoding]::UTF8.GetBytes($toSign)
-      $signature = [Convert]::ToBase64String($privateKey.SignData($toSignEncoded,[Security.Cryptography.HashAlgorithmName]::SHA256,[Security.Cryptography.RSASignaturePadding]::Pkcs1)) -replace '\+','-' -replace '/','_' -replace '='
-    }
-    $jwt = $toSign + '.' + $signature 
-    return $jwt.Replace(" ", "")
+          if ($null -eq $signature)
+          {
+            #sometimes this needs retried, honestly not sure why.
+            $signature = openssl base64 -in ./PureOneSignedHeader.txt
+          }
+          $signature = $signature -replace '\+','-' -replace '/','_' -replace '='
+          Remove-Item -Path ./PureOneSignedHeader.txt
+          Remove-Item -Path ./PureOneHeader.txt
+      }
+      else {
+        $toSignEncoded = [System.Text.Encoding]::UTF8.GetBytes($toSign)
+        $signature = [Convert]::ToBase64String($privateKey.SignData($toSignEncoded,[Security.Cryptography.HashAlgorithmName]::SHA256,[Security.Cryptography.RSASignaturePadding]::Pkcs1)) -replace '\+','-' -replace '/','_' -replace '='
+      }
+      $jwt = $toSign + '.' + $signature 
+      return $jwt.Replace(" ", "")
+  }
 }
 function New-PureOneConnection {
     <#
@@ -399,101 +648,114 @@ function New-PureOneConnection {
 
             [Parameter(Position=5,mandatory=$True,ParameterSetName='Unix')]
             [securestring]$RsaPassword
-    )
-    if (($isWindows -ne $true) -and ([string]::IsNullOrEmpty($RsaPassword)))
-    {
-      $RsaPassword = Read-Host "Please enter in the password for your private key" -AsSecureString
+    )Begin {
+      $checkForOneCert = $false
     }
-    if (($isWindows -eq $true) -or ($null -eq $isWindows))
-    {
-      if (($null -eq $certificate) -and ($null -eq $PrivateKey))
+    Process {
+      if ($checkForOneCert -eq $false)
       {
-        throw "Please pass in a certificate or RSA private key."
+        $checkForOneCert = $True
       }
-      if ($null -eq $certificate)
-      {
-          $jwt = New-PureOneJwt -privateKey $privateKey -pureAppID $pureAppID -expiration ((Get-Date).AddSeconds(60)) -ErrorAction Stop
-      }
-      else 
-      {
-          $jwt = New-PureOneJwt -certificate $certificate -pureAppID $pureAppID -expiration ((Get-Date).AddSeconds(60)) -ErrorAction Stop
+      else {
+        throw "Please only pass in one certificate/key at a time. More than one found in the pipelined input for parameter Certificate/private key."
       }
     }
-    else 
-    {
-      if (($isWindows -ne $true) -and ([string]::IsNullOrEmpty($PrivateKeyFileLocation)))
+    End {
+      if (($isWindows -ne $true) -and ([string]::IsNullOrEmpty($RsaPassword)))
       {
-        $keyPath = (Get-Location).Path
-        $checkPath = Test-Path "$($keyPath)/PureOnePrivate.pem"
-        if ($checkPath -eq $True)
+        $RsaPassword = Read-Host "Please enter in the password for your private key" -AsSecureString
+      }
+      if (($isWindows -eq $true) -or ($null -eq $isWindows))
+      {
+        if (($null -eq $certificate) -and ($null -eq $PrivateKey))
         {
-          $PrivateKeyFileLocation = "$($keyPath)/PureOnePrivate.pem"
+          throw "Please pass in a certificate or RSA private key."
+        }
+        if ($null -eq $certificate)
+        {
+            $jwt = New-PureOneJwt -privateKey $privateKey -pureAppID $pureAppID -expiration ((Get-Date).AddSeconds(60)) -ErrorAction Stop
         }
         else 
         {
-          throw "No default private key found. Please pass in a private key file location or create a new one with New-PureOneCertificate."
+            $jwt = New-PureOneJwt -certificate $certificate -pureAppID $pureAppID -expiration ((Get-Date).AddSeconds(60)) -ErrorAction Stop
         }
       }
-    }
-    try {
-      $jwt = New-PureOneJwt -PrivateKeyFileLocation $PrivateKeyFileLocation -RsaPassword $RsaPassword -pureAppID $pureAppID -expiration ((Get-Date).AddSeconds(60)) -ErrorAction Stop
-    }
-    catch
-    {
-     #throw ($_.errordetails.message |ConvertFrom-Json).error_description
-    }
-    $apiendpoint = "https://api.pure1.purestorage.com/oauth2/1.0/token"
-    $AuthAction = @{
-        grant_type = "urn:ietf:params:oauth:grant-type:token-exchange"
-        subject_token = $jwt
-        subject_token_type = "urn:ietf:params:oauth:token-type:jwt"
-        }
-    try {
-      $pureOnetoken = Invoke-RestMethod -Method Post -Uri $apiendpoint -ContentType "application/x-www-form-urlencoded" -Body $AuthAction -ErrorAction Stop
-    }
-    catch {
-      throw ($_.errordetails.message |ConvertFrom-Json).error_description
-    }
-    write-debug $pureOnetoken
-    $orgInfo = Resolve-JWTtoken -token $pureOnetoken
-    $date = get-date "1/1/1970"
-    $date = $date.AddSeconds($orgInfo.exp).ToLocalTime()
-    if (($null -eq $isWindows) -or ($isWindows -eq $true))
-    {
-      $newOrg = New-Object -TypeName WindowsPureOneOrganization -ArgumentList $orgInfo.org,$pureOnetoken.access_token,$PureAppID,$orgInfo.max_role,$date,$certificate -ErrorAction Stop
-    }
-    else {
-      $newOrg = $newOrg = New-Object -TypeName UnixPureOneOrganization -ArgumentList $orgInfo.org,$pureOnetoken.access_token,$PureAppID,$orgInfo.max_role,$date,$RsaPassword,$PrivateKeyFileLocation -ErrorAction Stop
-    }
-    if ($Global:PureOneConnections.Count -eq 0)
-    {
-      $Global:PureOneConnections += $newOrg
-      $Global:PureOneConnections[0].SetDefault($true)
-    }
-    else 
-    {
-      foreach ($connection in $Global:PureOneConnections) 
+      else 
       {
-        if ($connection.PureOneOrgID -eq $newOrg.PureOneOrgID)
+        if (($isWindows -ne $true) -and ([string]::IsNullOrEmpty($PrivateKeyFileLocation)))
+        {
+          $keyPath = (Get-Location).Path
+          $checkPath = Test-Path "$($keyPath)/PureOnePrivate.pem"
+          if ($checkPath -eq $True)
           {
-            if ($connection.updateLock -eq $false)
-            {
-              throw "The Pure1 Organization with ID $($connection.PureOneOrgID) is already connected."
-            }
-            else {
-              $pureOneUpdate = $True
-              break
-            }
+            $PrivateKeyFileLocation = "$($keyPath)/PureOnePrivate.pem"
+          }
+          else 
+          {
+            throw "No default private key found. Please pass in a private key file location or create a new one with New-PureOneCertificate."
           }
         }
-      if ($pureOneUpdate -ne $true)
+      }
+      try {
+        $jwt = New-PureOneJwt -PrivateKeyFileLocation $PrivateKeyFileLocation -RsaPassword $RsaPassword -pureAppID $pureAppID -expiration ((Get-Date).AddSeconds(60)) -ErrorAction Stop
+      }
+      catch
+      {
+      #throw ($_.errordetails.message |ConvertFrom-Json).error_description
+      }
+      $apiendpoint = "https://api.pure1.purestorage.com/oauth2/1.0/token"
+      $AuthAction = @{
+          grant_type = "urn:ietf:params:oauth:grant-type:token-exchange"
+          subject_token = $jwt
+          subject_token_type = "urn:ietf:params:oauth:token-type:jwt"
+          }
+      try {
+        $pureOnetoken = Invoke-RestMethod -Method Post -Uri $apiendpoint -ContentType "application/x-www-form-urlencoded" -Body $AuthAction -ErrorAction Stop
+      }
+      catch {
+        throw ($_.errordetails.message |ConvertFrom-Json).error_description
+      }
+      write-debug $pureOnetoken
+      $orgInfo = Resolve-JWTtoken -token $pureOnetoken
+      $date = get-date "1/1/1970"
+      $date = $date.AddSeconds($orgInfo.exp).ToLocalTime()
+      if (($null -eq $isWindows) -or ($isWindows -eq $true))
+      {
+        $newOrg = New-Object -TypeName WindowsPureOneOrganization -ArgumentList $orgInfo.org,$pureOnetoken.access_token,$PureAppID,$orgInfo.max_role,$date,$certificate -ErrorAction Stop
+      }
+      else {
+        $newOrg = $newOrg = New-Object -TypeName UnixPureOneOrganization -ArgumentList $orgInfo.org,$pureOnetoken.access_token,$PureAppID,$orgInfo.max_role,$date,$RsaPassword,$PrivateKeyFileLocation -ErrorAction Stop
+      }
+      if ($Global:PureOneConnections.Count -eq 0)
       {
         $Global:PureOneConnections += $newOrg
+        $Global:PureOneConnections[0].SetDefault($true)
       }
-    }
-    if ($returnOrg -eq $true)
-    {
-      return $newOrg
+      else 
+      {
+        foreach ($connection in $Global:PureOneConnections) 
+        {
+          if ($connection.PureOneOrgID -eq $newOrg.PureOneOrgID)
+            {
+              if ($connection.updateLock -eq $false)
+              {
+                throw "The Pure1 Organization with ID $($connection.PureOneOrgID) is already connected."
+              }
+              else {
+                $pureOneUpdate = $True
+                break
+              }
+            }
+          }
+        if ($pureOneUpdate -ne $true)
+        {
+          $Global:PureOneConnections += $newOrg
+        }
+      }
+      if ($returnOrg -eq $true)
+      {
+        return $newOrg
+      }
     }
 }
 function New-PureOneOperation {

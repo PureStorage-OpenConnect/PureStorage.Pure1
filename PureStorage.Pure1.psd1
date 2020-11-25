@@ -4,7 +4,7 @@
 	 Created by:   	Cody Hosterman
 	 Organization: 	Pure Storage, Inc.
 	 Filename:     	Cody.PureStorage.Pure1.psd1
-	 Version:		1.3.0.1
+	 Version:		1.4.0.0
 	 Copyright:		2020 Pure Storage, Inc.
 	-------------------------------------------------------------------------
 	 Module Name: PureStoragePure1PowerShell
@@ -30,7 +30,7 @@
 	RootModule = 'PureStorage.Pure1.psm1'
 	
 	# Version number of this module; major.minor[.build[.revision]]
-	ModuleVersion = '1.3.0.1'
+	ModuleVersion = '1.4.0.0'
 	
 	# ID used to uniquely identify this module
 	GUID = '65867a33-8c09-4651-8043-96c2f7ca2893'
@@ -84,7 +84,7 @@
 	NestedModules = @()
 	
 	# Functions to export from this module
-	FunctionsToExport = 'New-PureOneConnection','Get-PureOneArray','New-PureOneOperation','Get-PureOneArrayTag','Set-PureOneArrayTag','Remove-PureOneArrayTag','Get-PureOneArrayNetworking','Get-PureOneMetricDetail','Get-PureOneMetric','Get-PureOneVolume','Get-PureOnePod','Get-PureOneVolumeSnapshot','Get-PureOneFileSystem','Get-PureOneFileSystemSnapshot','Get-PureOneArrayLoadMeter','New-PureOneCertificate','Get-PureOnePublicKey','New-PureOneJwt','Get-PureOneAlert','Get-PureOneSupportContract'
+	FunctionsToExport = 'New-PureOneConnection','Get-PureOneArray','New-PureOneOperation','Get-PureOneArrayTag','Set-PureOneArrayTag','Remove-PureOneArrayTag','Get-PureOneArrayNetworking','Get-PureOneMetricDetail','Get-PureOneMetric','Get-PureOneVolume','Get-PureOnePod','Get-PureOneVolumeSnapshot','Get-PureOneFileSystem','Get-PureOneFileSystemSnapshot','Get-PureOneArrayLoadMeter','New-PureOneCertificate','Get-PureOnePublicKey','New-PureOneJwt','Get-PureOneAlert','Get-PureOneSupportContract','Get-PureOneCertificate','Set-PureOneDefaultCertificate'
 	
 	# Cmdlets to export from this module
 	CmdletsToExport = '*'
@@ -108,19 +108,19 @@
 		PSData = @{
 			
 			# Tags applied to this module. These help with module discovery in online galleries.
-			# Tags = @()
+			# Tags = @("Pure1","Pure Storage")
 			
 			# A URL to the license for this module.
-			# LicenseUri = ''
+			# LicenseUri = 'https://www.purestorage.com/content/dam/pdf/en/legal/pure-storage-plugin-end-user-license-agreement.pdf'
 			
 			# A URL to the main website for this project.
 			# ProjectUri = ''
 			
 			# A URL to an icon representing this module.
-			# IconUri = ''
+			# IconUri = 'https://pure-vmware-plugin-repository.s3-us-west-1.amazonaws.com/Images/pslogo.png'
 			
 			# ReleaseNotes of this module
-			# ReleaseNotes = ''
+			# ReleaseNotes = 'https://github.com/PureStorage-OpenConnect/PureStorage.Pure1'
 			
 		}
 		
