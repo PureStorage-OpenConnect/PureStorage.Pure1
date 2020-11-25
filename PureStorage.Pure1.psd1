@@ -108,19 +108,19 @@
 		PSData = @{
 			
 			# Tags applied to this module. These help with module discovery in online galleries.
-			# Tags = @("Pure1","Pure Storage")
+			Tags = @("Pure1","Pure Storage")
 			
 			# A URL to the license for this module.
-			# LicenseUri = 'https://www.purestorage.com/content/dam/pdf/en/legal/pure-storage-plugin-end-user-license-agreement.pdf'
+			LicenseUri = 'https://www.purestorage.com/content/dam/pdf/en/legal/pure-storage-plugin-end-user-license-agreement.pdf'
 			
 			# A URL to the main website for this project.
 			# ProjectUri = ''
 			
 			# A URL to an icon representing this module.
-			# IconUri = 'https://pure-vmware-plugin-repository.s3-us-west-1.amazonaws.com/Images/pslogo.png'
+			IconUri = 'https://pure-vmware-plugin-repository.s3-us-west-1.amazonaws.com/Images/pslogo.png'
 			
 			# ReleaseNotes of this module
-			# ReleaseNotes = 'https://github.com/PureStorage-OpenConnect/PureStorage.Pure1'
+			ReleaseNotes = 'https://github.com/PureStorage-OpenConnect/PureStorage.Pure1'
 			
 		}
 		
