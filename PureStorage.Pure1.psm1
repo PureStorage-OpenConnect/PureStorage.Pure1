@@ -96,29 +96,28 @@ function Get-PureOneCertificate {
 function Set-PureOneDefaultCertificate {
   <#
   .SYNOPSIS
-    Returns the Windows Certificate or RSA Private Key used for Pure1 Authentication.
+    Set a Windows Certificate to the default certificate used for Pure1 Authentication.
   .DESCRIPTION
-    Returns the default Pure1 certificate or key. Or returns the specified certificate object if a non-default one is used.
+    The default certificate is designated by using the friendly name of Default Pure1 REST API Certificate
   .INPUTS
-    Certificate store (optional), certificate thumbrint (optional)
+    Certificate, or certificate store and certificate thumbprint
   .OUTPUTS
-    Returns the certificate object or private key path
+    Returns the certificate object
   .EXAMPLE
-    PS C:\ Get-PureOneCertificate
+    PS C:\ Set-PureOneDefaultCertificate -certificateStore cert:\localmachine\my -CertificateThumbprint 3ED3EB9BF753849820CFF43B2444100D334B60DD
 
-    Returns the default Pure1 certificate in the default certificiate store cert:\currentuser\my or the Default Private Key path if using Linux or MacOS
+    Set the specified certificate to the default.
   .EXAMPLE
-    PS C:\ Get-PureOneCertificate -certificateStore cert:\localmachine\my
+    PS C:\ $cert = Get-ChildItem -Path cert:\localmachine\my\3ED3EB9BF753849820CFF43B2444100D334B60DD
+    PS C:\ $cert | Set-PureOneDefaultCertificate
 
-    Windows only: Returns the default Pure1 certificate in the certificiate store cert:\localmachine\my
+    Set the specified certificate to the default.
   .EXAMPLE
-    PS C:\ Get-PureOneCertificate -CertificateThumbprint 3ED3EB9BF753849820CFF43B2444100D334B60DD
+    PS C:\ $cert = Get-ChildItem -Path cert:\localmachine\my\3ED3EB9BF753849820CFF43B2444100D334B60DD
+    PS C:\ $cert | Set-PureOneDefaultCertificate -Confirm:$false
 
-    Windows only: Returns the Pure1 certificate with the specified thumbprint in the default certificiate store cert:\currentuser\my
-  .EXAMPLE
-    PS C:\ Get-PureOneCertificate -certificateStore cert:\localmachine\my -CertificateThumbprint 3ED3EB9BF753849820CFF43B2444100D334B60DD
+    Set the specified certificate to the default without prompt
 
-    Windows only: Returns the Pure1 certificate with the specified thumbprint in the specified certificiate store
   .NOTES
     Version:        1.0
     Author:         Cody Hosterman https://codyhosterman.com
