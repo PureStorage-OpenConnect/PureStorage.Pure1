@@ -213,6 +213,10 @@ function New-PureOneCertificate {
 
       Creates a properly formatted self-signed certificate for Pure1 authentication. Defaults to certificate store of cert:\currentuser\my
     .EXAMPLE
+      PS C:\ New-PureOneCertificate -NonDefault
+
+      Creates a properly formatted self-signed certificate for Pure1 authentication. Defaults to certificate store of cert:\currentuser\my. The nonDefault switch makes the created certificate not the default one.
+    .EXAMPLE
       PS C:\ New-PureOneCertificate -certificateStore cert:\localmachine\my
 
       Creates a properly formatted self-signed certificate for Pure1 authentication. Uses the specifed certificate store. Non-default stores usually require running as administrator. Windows only.
@@ -624,7 +628,7 @@ function New-PureOneConnection {
 
     [CmdletBinding(DefaultParameterSetName='AppID')]
     Param(
-            [Parameter(Position=0,ValueFromPipeline=$True,mandatory=$True,ParameterSetName='Certificate')]
+            [Parameter(Position=0,ValueFromPipeline=$True,ParameterSetName='Certificate')]
             [System.Security.Cryptography.X509Certificates.X509Certificate]$Certificate,
 
             [Parameter(Position=1,mandatory=$True,ParameterSetName='AppID')]
@@ -668,7 +672,11 @@ function New-PureOneConnection {
       {
         if (($null -eq $certificate) -and ($null -eq $PrivateKey))
         {
-          throw "Please pass in a certificate or RSA private key."
+          $Certificate = Get-PureOneCertificate -ErrorAction SilentlyContinue
+          if ($null -eq $certificate)
+          {
+            throw "Please pass in a certificate or RSA private key."
+          }
         }
         if ($null -eq $certificate)
         {
@@ -683,13 +691,8 @@ function New-PureOneConnection {
       {
         if (($isWindows -ne $true) -and ([string]::IsNullOrEmpty($PrivateKeyFileLocation)))
         {
-          $keyPath = (Get-Location).Path
-          $checkPath = Test-Path "$($keyPath)/PureOnePrivate.pem"
-          if ($checkPath -eq $True)
-          {
-            $PrivateKeyFileLocation = "$($keyPath)/PureOnePrivate.pem"
-          }
-          else 
+          $PrivateKeyFileLocation = Get-PureOneCertificate -ErrorAction SilentlyContinue
+          if ([string]::IsNullOrEmpty($PrivateKeyFileLocation)) 
           {
             throw "No default private key found. Please pass in a private key file location or create a new one with New-PureOneCertificate."
           }
