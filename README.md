@@ -95,7 +95,7 @@ https://www.codyhosterman.com/2019/12/pure1-rest-api-authentication-made-easy/
 <!-- /wp:heading -->
 
 <!-- wp:paragraph -->
-<p>See version details:</p>
+<p>See version details: https://github.com/PureStorage-OpenConnect/PureStorage.Pure1/projects/6</p>
 <!-- /wp:paragraph -->
 
 <!-- wp:paragraph -->
@@ -103,7 +103,7 @@ https://www.codyhosterman.com/2019/12/pure1-rest-api-authentication-made-easy/
 <!-- /wp:paragraph -->
 
 <!-- wp:list -->
-<ul><li>Default Certificate Designation</li><li>Get-PureOneCertificate</li><li>Set-PureOneDefaultCertificate</li><li>Auto-detection of default certificates</li></ul>
+<ul><li>Default Certificate Designation</li><li><a href="https://github.com/PureStorage-OpenConnect/PureStorage.Pure1/issues/36" target="_blank" rel="noreferrer noopener">Get-PureOneCertificate</a></li><li><a href="https://github.com/PureStorage-OpenConnect/PureStorage.Pure1/issues/37" target="_blank" rel="noreferrer noopener">Set-PureOneDefaultCertificate</a></li><li>Auto-detection of default certificates</li></ul>
 <!-- /wp:list -->
 
 <!-- wp:paragraph -->
@@ -111,7 +111,7 @@ https://www.codyhosterman.com/2019/12/pure1-rest-api-authentication-made-easy/
 <!-- /wp:paragraph -->
 
 <!-- wp:list -->
-<ul><li>Improved error handling of authentication</li><li>Multiple certificates passed into JWT command causing bad JWTs</li></ul>
+<ul><li>Improved error handling of authentication</li><li><a href="https://github.com/PureStorage-OpenConnect/PureStorage.Pure1/issues/34" target="_blank" rel="noreferrer noopener">Multiple certificates passed into JWT command causing bad JWTs</a></li></ul>
 <!-- /wp:list -->
 
 <!-- wp:heading -->
