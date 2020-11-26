@@ -66,6 +66,12 @@ https://www.codyhosterman.com/2019/12/pure1-rest-api-authentication-made-easy/
 <p><a href="https://www.codyhosterman.com/2020/09/pure1-powershell-module-core-support-and-more/" data-type="post" data-id="6867">Pure1 PowerShell Module Core Support (and more!)</a></p>
 <!-- /wp:paragraph -->
 
+<!-- wp:core-embed/wordpress {"url":"https://www.codyhosterman.com/2020/11/improved-certificate-management-for-pure1-powershell-module/","type":"wp-embed","providerNameSlug":"cody-hosterman","className":""} -->
+<figure class="wp-block-embed-wordpress wp-block-embed is-type-wp-embed is-provider-cody-hosterman"><div class="wp-block-embed__wrapper">
+https://www.codyhosterman.com/2020/11/improved-certificate-management-for-pure1-powershell-module/
+</div></figure>
+<!-- /wp:core-embed/wordpress -->
+
 <!-- wp:paragraph -->
 <p>Use either get-help or get-command to see the details:</p>
 <!-- /wp:paragraph -->
