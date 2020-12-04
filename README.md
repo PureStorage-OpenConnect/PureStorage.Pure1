@@ -66,12 +66,18 @@ https://www.codyhosterman.com/2019/12/pure1-rest-api-authentication-made-easy/
 <p><a href="https://www.codyhosterman.com/2020/09/pure1-powershell-module-core-support-and-more/" data-type="post" data-id="6867">Pure1 PowerShell Module Core Support (and more!)</a></p>
 <!-- /wp:paragraph -->
 
+<!-- wp:core-embed/wordpress {"url":"https://www.codyhosterman.com/2020/11/improved-certificate-management-for-pure1-powershell-module/","type":"wp-embed","providerNameSlug":"cody-hosterman","className":""} -->
+<figure class="wp-block-embed-wordpress wp-block-embed is-type-wp-embed is-provider-cody-hosterman"><div class="wp-block-embed__wrapper">
+https://www.codyhosterman.com/2020/11/improved-certificate-management-for-pure1-powershell-module/
+</div></figure>
+<!-- /wp:core-embed/wordpress -->
+
 <!-- wp:paragraph -->
 <p>Use either get-help or get-command to see the details:</p>
 <!-- /wp:paragraph -->
 
-<!-- wp:image {"id":6982,"sizeSlug":"large"} -->
-<figure class="wp-block-image size-large"><img src="https://www.codyhosterman.com/wp-content/uploads/2020/09/image-52-1024x528.png" alt="" class="wp-image-6982"/></figure>
+<!-- wp:image {"id":7229,"sizeSlug":"large"} -->
+<figure class="wp-block-image size-large"><img src="https://www.codyhosterman.com/wp-content/uploads/2020/11/image-47-1024x557.png" alt="" class="wp-image-7229"/></figure>
 <!-- /wp:image -->
 
 <!-- wp:image {"id":6900,"sizeSlug":"large"} -->
@@ -91,7 +97,31 @@ https://www.codyhosterman.com/2019/12/pure1-rest-api-authentication-made-easy/
 <!-- /wp:list -->
 
 <!-- wp:heading -->
-<h2>Latest version 1.3.0.1 (October 7th, 2020)</h2>
+<h2>Latest version 1.4.1.1 (November 25th, 2020)</h2>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>See version details: https://github.com/PureStorage-OpenConnect/PureStorage.Pure1/projects/6</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph -->
+<p><strong>New features:</strong></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:list -->
+<ul><li>Default Certificate Designation</li><li><a href="https://github.com/PureStorage-OpenConnect/PureStorage.Pure1/issues/36" target="_blank" rel="noreferrer noopener">Get-PureOneCertificate</a></li><li><a href="https://github.com/PureStorage-OpenConnect/PureStorage.Pure1/issues/37" target="_blank" rel="noreferrer noopener">Set-PureOneDefaultCertificate</a></li><li>Auto-detection of default certificates</li></ul>
+<!-- /wp:list -->
+
+<!-- wp:paragraph -->
+<p><strong>Bug Fixes:</strong></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:list -->
+<ul><li>Improved error handling of authentication</li><li><a href="https://github.com/PureStorage-OpenConnect/PureStorage.Pure1/issues/34" target="_blank" rel="noreferrer noopener">Multiple certificates passed into JWT command causing bad JWTs</a></li></ul>
+<!-- /wp:list -->
+
+<!-- wp:heading -->
+<h2>Previous Version 1.3.0.0 (September 24th, 2020)</h2>
 <!-- /wp:heading -->
 
 <!-- wp:paragraph -->
@@ -112,36 +142,7 @@ https://www.codyhosterman.com/2019/12/pure1-rest-api-authentication-made-easy/
 
 <!-- wp:list -->
 <ul><li><a href="https://github.com/PureStorage-OpenConnect/PureStorage.Pure1/issues/30">Issue where new-pureoneconnection was not terminating upon first error</a></li></ul>
-<ul><li><a href="https://github.com/PureStorage-OpenConnect/PureStorage.Pure1/issues/33">Issue where pipelining is broken for certificates with New-PureOneJwt</a></li></ul>
 <!-- /wp:list -->
-
-<!-- wp:heading -->
-<h2>Previous version 1.2.0.3 (September 1st, 2020)</h2>
-<!-- /wp:heading -->
-
-<!-- wp:paragraph -->
-<p>See  version details: <a href="https://github.com/PureStorage-OpenConnect/PureStorage.Pure1/projects/1">https://github.com/PureStorage-OpenConnect/PureStorage.Pure1/projects/1</a></p>
-<!-- /wp:paragraph -->
-
-<!-- wp:paragraph -->
-<p><strong>New features:</strong></p>
-<!-- /wp:paragraph -->
-
-<!-- wp:list -->
-<ul><li>Core Support on Linux and MacOS</li><li>Multiple Pure1 Organizations</li></ul>
-<!-- /wp:list -->
-
-<!-- wp:paragraph -->
-<p><strong>Bug Fixes:</strong></p>
-<!-- /wp:paragraph -->
-
-<!-- wp:list -->
-<ul><li>Improved error handling</li><li><a href="https://github.com/PureStorage-OpenConnect/PureStorage.Pure1/issues/26" target="_blank" rel="noreferrer noopener">Fixed issue with New-PureOneOperation not terminating after failure (1.2.0.2)</a></li><li><a href="https://github.com/PureStorage-OpenConnect/PureStorage.Pure1/issues/25" target="_blank" rel="noreferrer noopener">Internal function to set REST header to JWT fails when not specifying token directly. (1.2.0.1)</a></li><li>Missing help examples</li></ul>
-<!-- /wp:list -->
-
-<!-- wp:paragraph -->
-<p>Cmdlets:</p>
-<!-- /wp:paragraph -->
 
 <!-- wp:paragraph -->
 <p><br><br></p>
