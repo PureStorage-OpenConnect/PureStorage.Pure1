@@ -612,10 +612,10 @@ function New-PureOneConnection {
 
       Creates a Pure1 REST connection for use with additional Pure1 cmdlets.
     .NOTES
-      Version:        1.2
+      Version:        1.3
       Author:         Cody Hosterman https://codyhosterman.com
-      Creation Date:  09/24/2020
-      Purpose/Change: Discover default key
+      Creation Date:  12/04/2020
+      Purpose/Change: Fix for PowerShell 5.x
   
     *******Disclaimer:******************************************************
     This scripts are offered "as is" with no warranty.  While this 
@@ -664,7 +664,7 @@ function New-PureOneConnection {
       }
     }
     End {
-      if (($isWindows -ne $true) -and ([string]::IsNullOrEmpty($RsaPassword)))
+      if (($isWindows -eq $false) -and ([string]::IsNullOrEmpty($RsaPassword)))
       {
         $RsaPassword = Read-Host "Please enter in the password for your private key" -AsSecureString
       }
@@ -689,7 +689,7 @@ function New-PureOneConnection {
       }
       else 
       {
-        if (($isWindows -ne $true) -and ([string]::IsNullOrEmpty($PrivateKeyFileLocation)))
+        if (($isWindows -eq $false) -and ([string]::IsNullOrEmpty($PrivateKeyFileLocation)))
         {
           $PrivateKeyFileLocation = Get-PureOneCertificate -ErrorAction SilentlyContinue
           if ([string]::IsNullOrEmpty($PrivateKeyFileLocation)) 
