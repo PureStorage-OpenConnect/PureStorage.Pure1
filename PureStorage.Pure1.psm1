@@ -24,10 +24,20 @@ function Get-PureOneCertificate {
     PS C:\ Get-PureOneCertificate -certificateStore cert:\localmachine\my -CertificateThumbprint 3ED3EB9BF753849820CFF43B2444100D334B60DD
 
     Windows only: Returns the Pure1 certificate with the specified thumbprint in the specified certificiate store
+  .EXAMPLE
+    PS C:\ $password = Read-Host -AsSecureString 
+    PS C:\ Get-PureOneCertificate -export -CertificatePassword $password
+  
+    Will export the certificate to a PFX file with the specified password. Returns the file path.
+  .EXAMPLE
+    PS C:\ $password = Read-Host -AsSecureString 
+    PS C:\ Get-PureOneCertificate -export -CertificatePassword $password -exportdirectory C:\Users\Pureuser\Certs
+  
+    Will export the certificate to a PFX file in the specified directory with the specified password. Returns the file path.
   .NOTES
-    Version:        1.0
+    Version:        1.1
     Author:         Cody Hosterman https://codyhosterman.com
-    Creation Date:  11/11/2020
+    Creation Date:  12/05/2020
     Purpose/Change: Initial Release
 
   *******Disclaimer:******************************************************
@@ -45,8 +55,24 @@ function Get-PureOneCertificate {
           [String]$CertificateStore,
 
           [Parameter(Position=1)]
-          [String]$CertificateThumbprint
+          [String]$CertificateThumbprint,
+
+          [Parameter(Position=2,ParameterSetName='Export')]
+          [Switch]$Export,
+
+          [Parameter(Position=3,ParameterSetName='Export')]
+          [SecureString]$CertificatePassword,
+
+          [Parameter(Position=4,ParameterSetName='Export')]
+          [String]$ExportDirectory
   )
+  if (($IsLinux -eq $true) -or ($IsMacOS -eq $true))
+  {
+    if ($Export -eq $true)
+    {
+      throw "Export is only valid for Windows."
+    }
+  }
   if ($IsWindows -eq $false)
   {
     if (![string]::IsNullOrEmpty($CertificateStore))
@@ -83,14 +109,45 @@ function Get-PureOneCertificate {
       {
         throw "No default certificate found in the specified certificate store (a certificate that has the friendly name of `"Default Pure1 REST API Certificate`")."
       }
-      else {
-        return $cert
-      }
     }
     else {
       $cert = Get-ChildItem -Path ($CertificateStore + "\" + $CertificateThumbprint) -ErrorAction Stop
-      return $cert
     }
+  }
+  if ($Export -eq $true)
+  {
+    if ($null -eq $CertificatePassword)
+    {
+      do {
+        $CertificatePassword = Read-Host "Please enter a certificate export password" -AsSecureString
+      }while ($CertificatePassword.length -eq 0)
+    }
+    if ([string]::IsNullOrEmpty($ExportDirectory))
+    {
+      $keyPath = (Get-Location).Path
+    }
+    else {
+      if ((Test-Path -Path $ExportDirectory) -eq $false)
+      {
+        throw "Entered path $($ExportDirectory) is not valid. Please enter a valid directory. For example, C:\Users\Janice\Certs"
+      }
+      else {
+        $keyPath = $ExportDirectory
+      }
+    }
+    $DecryptedCertificatePassword = ConvertFrom-SecureString $CertificatePassword -AsPlainText
+    $cert |Foreach-Object { [system.IO.file]::WriteAllBytes("$($keyPath)\PureOneCert.pfx",($_.Export('PFX', $DecryptedCertificatePassword)) ) }
+    $foundKey = test-path "$($keyPath)\PureOneCert.pfx"
+    if ($foundKey -eq $true)
+    {
+      return "$($keyPath)\PureOneCert.pfx"
+    }
+    else {
+      throw "The certificate could not be exported to $($keyPath)\PureOneCert.pfx. Ensure directory is accessible."
+    }
+  }
+  else {
+    return $cert 
   }
 }
 function Set-PureOneDefaultCertificate {
@@ -350,10 +407,14 @@ function Get-PureOnePublicKey {
     .OUTPUTS
       Returns the PEM based public key
     .EXAMPLE
-      PS C:\ $cert = New-PureOneCertificate
-      PS C:\ $cert | Get-PureOnePublicKey
+      PS C:\ Get-PureOnePublicKey
 
-      Returns the PEM formatted Public Key of the certificate passed in via piping so that it can be entered in Pure1.
+      Returns the PEM formatted Public Key of the default certificate.
+    .EXAMPLE
+      PS /home/pureuser> $password = Read-Host -AsSecureString
+      PS /home/pureuser> Get-PureOnePublicKey -RsaPassword $password
+
+      Returns the PEM formatted Public Key of the default private key.
     .EXAMPLE
       PS C:\ $cert = New-PureOneCertificate
       PS C:\ Get-PureOnePublicKey -certificate $cert
@@ -385,23 +446,37 @@ function Get-PureOnePublicKey {
     ************************************************************************
     #>
 
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName='Certificate')]
     Param(
-        [Parameter(Position=0,ValueFromPipeline=$True,mandatory=$True,ParameterSetName='Certificate')]
+        [Parameter(Position=0,ValueFromPipeline=$True,ParameterSetName='Certificate')]
         [System.Security.Cryptography.X509Certificates.X509Certificate]$Certificate,
 
-        [Parameter(Position=1,ParameterSetName='RSAPair',mandatory=$True)]
+        [Parameter(Position=1,ParameterSetName='RSAPair')]
         [String]$PrivateKeyFileLocation,
 
-        [Parameter(Position=2,ParameterSetName='RSAPair',mandatory=$True)]
+        [Parameter(Position=2,ParameterSetName='RSAPair')]
         [securestring]$RsaPassword
     )
     Begin {
       $publicKeys = @()
     }
     Process {
-      if ($null -eq $certificate)
+      if (($IsLinux -eq $true) -or ($IsMacOS -eq $true))
       {
+        if ([string]::IsNullOrEmpty($PrivateKeyFileLocation))
+        {
+          $PrivateKeyFileLocation = Get-PureOneCertificate -ErrorAction SilentlyContinue
+        }
+        if ([string]::IsNullOrEmpty($PrivateKeyFileLocation))
+        {
+          throw "No private key provided and default key does not exist. Please provide a private key path or create a new one."
+        }
+        if ($RsaPassword.length -eq 0)
+        {
+          do {
+            $RsaPassword = Read-Host "Please enter your RSA private key password" -AsSecureString
+          } while ($RsaPassword.length -eq 0)
+        }
         $checkPath = Test-Path $PrivateKeyFileLocation
         if ($checkPath -eq $false)
         {
@@ -419,8 +494,16 @@ function Get-PureOnePublicKey {
         $publicKeys += $publicKey
       }
       else {
-      $certRaw = ([System.Convert]::ToBase64String($certificate.PublicKey.EncodedKeyValue.RawData)).tostring()
-      $publicKeys += ("-----BEGIN PUBLIC KEY-----`n" + "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A" + $certRaw + "`n-----END PUBLIC KEY-----")
+        if ($null -eq $certificate)
+        {
+            $Certificate = Get-PureOneCertificate -ErrorAction SilentlyContinue
+            if ($null -eq $certificate)
+            {
+              throw "You must pass in a x509 certificate or create/set a default one."
+            }
+        }
+        $certRaw = ([System.Convert]::ToBase64String($certificate.PublicKey.EncodedKeyValue.RawData)).tostring()
+        $publicKeys += ("-----BEGIN PUBLIC KEY-----`n" + "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A" + $certRaw + "`n-----END PUBLIC KEY-----")
       }
     }
     End {
@@ -437,6 +520,15 @@ function New-PureOneJwt {
       Pure1 Application ID, an expiration, and a certificate or a private key.
     .OUTPUTS
       Returns the JSON Web Token as a string.
+    .EXAMPLE
+        PS C:\ New-PureOneJwt -pureAppID pure1:apikey:v4u3ZXXXXXXXXC6o
+
+        Returns a JSON Web Token that can be used to create a Pure1 REST session. A JWT generated with no specificed expiration is valid for 30 days. Since no certificate is specified it will use the default certificate if it exists.
+      .EXAMPLE
+        PS /home/pureuser> $password = Read-Host -AsSecureString  
+        PS /home/pureuser> New-PureOneJwt -RsaPassword $password -PureAppID pure1:apikey:TACAwKsXL7kLa96q
+
+        Returns a JSON Web Token that can be used to create a Pure1 REST session. A JWT generated with no specificed expiration is valid for 30 days. Since no key file is specified it will use the default key file if it exists.
     .EXAMPLE
         PS C:\ $cert = New-PureOneCertificate
         PS C:\ New-PureOneJwt -certificate $cert -pureAppID pure1:apikey:v4u3ZXXXXXXXXC6o
@@ -458,10 +550,10 @@ function New-PureOneJwt {
 
       Creates a JSON web token for external use for the specified private key and the associated Pure1 API key. An expiration is set for two days from now, so this JWT will be valid to create new REST sessions for 48 hours.
     .NOTES
-      Version:        1.1
+      Version:        1.2
       Author:         Cody Hosterman https://codyhosterman.com
-      Creation Date:  08/29/2020
-      Purpose/Change: Core support
+      Creation Date:  12/05/2020
+      Purpose/Change: Improved interactions
   
     *******Disclaimer:******************************************************
     This scripts are offered "as is" with no warranty.  While this 
@@ -472,21 +564,27 @@ function New-PureOneJwt {
     ************************************************************************
     #>
 
-    [CmdletBinding(DefaultParameterSetName='WindowsCert')]
+    [CmdletBinding(DefaultParameterSetName='None')]
     Param(
-            [Parameter(Position=0,mandatory=$True,ValueFromPipeline=$True,ParameterSetName='WindowsCert')]
+            [Parameter(Position=0,ValueFromPipeline=$True,ParameterSetName='WindowsCert')]
             [System.Security.Cryptography.X509Certificates.X509Certificate]$Certificate,
 
-            [Parameter(Position=1,mandatory=$True)]
+            [Parameter(Position=1,mandatory=$True,ParameterSetName='WindowsCert')]
+            [Parameter(Position=1,mandatory=$True,ParameterSetName='WindowsKey')]
+            [Parameter(Position=1,mandatory=$True,ParameterSetName='Unix')]
+            [Parameter(Position=1,mandatory=$True,ParameterSetName='None')]
             [string]$PureAppID,
             
-            [Parameter(Position=2,mandatory=$True,ParameterSetName='WindowsKey')]
+            [Parameter(Position=2,ParameterSetName='WindowsKey')]
             [System.Security.Cryptography.RSA]$PrivateKey,
 
-            [Parameter(Position=3,ValueFromPipeline=$True)]
+            [Parameter(Position=3,ParameterSetName='WindowsCert')]
+            [Parameter(Position=3,ParameterSetName='WindowsKey')]
+            [Parameter(Position=3,ParameterSetName='Unix')]
+            [Parameter(Position=3,ParameterSetName='None')]
             [System.DateTime]$Expiration,
 
-            [Parameter(Position=4,ParameterSetName='Unix',mandatory=$True)]
+            [Parameter(Position=4,ParameterSetName='Unix')]
             [string]$PrivateKeyFileLocation,
 
             [Parameter(Position=5,ParameterSetName='Unix',mandatory=$True)]
@@ -505,11 +603,26 @@ function New-PureOneJwt {
       }
     }
     End {
+      if (($IsLinux -eq $true) -or ($IsMacOS -eq $true))
+      {
+        if ([string]::IsNullOrEmpty($PrivateKeyFileLocation))
+        {
+          $PrivateKeyFileLocation = Get-PureOneCertificate -ErrorAction SilentlyContinue
+        }
+        if ([string]::IsNullOrEmpty($PrivateKeyFileLocation))
+        {
+          throw "No private key provided and default key does not exist. Please provide a private key path or create a new one."
+        }
+      }
       if (($null -eq $isWindows) -or ($isWindows -eq $true))
       {
         if (($null -eq $privateKey) -and ($null -eq $certificate))
         {
-            throw "You must pass in a x509 certificate or a RSA Private Key"
+            $Certificate = Get-PureOneCertificate -ErrorAction SilentlyContinue
+            if ($null -eq $certificate)
+            {
+              throw "You must pass in a x509 certificate or a RSA Private Key"
+            }
         }
         #checking for certificate accuracy
         if ($null -ne $certificate)
@@ -596,6 +709,15 @@ function New-PureOneConnection {
     .OUTPUTS
       Does not return anything--it stores the Pure1 REST access token in a global variable called $Global:PureOneConnections. Valid for 10 hours.
     .EXAMPLE
+      PS C:\ New-PureOneConnection -pureAppID pure1:apikey:PZogg67LcjImYTiI
+
+      Create a Pure1 REST connection using a passed in certificate and the specified Pure1 App ID. Since no certificate/key is specified uses the default certificate/key if it exists.
+    .EXAMPLE
+      PS /home/pureuser> $password = Read-Host -AsSecureString  
+      PS /home/pureuser> New-PureOneConnection -RsaPassword $password -PureAppID pure1:apikey:TACAwKsXL7kLa96q
+
+      Creates a Pure1 REST connection for use with additional Pure1 cmdlets. Since no key location is specified it uses the default key if it exists.
+    .EXAMPLE
       PS C:\ $cert = New-PureOneCertificate
       PS C:\ $cert | New-PureOneConnection -pureAppID pure1:apikey:PZogg67LcjImYTiI
 
@@ -650,60 +772,69 @@ function New-PureOneConnection {
             [string]$PrivateKeyFileLocation,
 
             [Parameter(Position=5,mandatory=$True,ParameterSetName='Unix')]
-            [securestring]$RsaPassword
+            [securestring]$RsaPassword,
+
+            [Parameter(Position=6,ParameterSetName='JWT')]
+            [string]$Jwt
     )Begin {
       $checkForOneCert = $false
     }
     Process {
-      if ($checkForOneCert -eq $false)
+      if ([string]::IsNullOrEmpty($Jwt))
       {
-        $checkForOneCert = $True
-      }
-      else {
-        throw "Please only pass in one certificate/key at a time. More than one found in the pipelined input for parameter Certificate/private key."
+        if ($checkForOneCert -eq $false)
+        {
+          $checkForOneCert = $True
+        }
+        else {
+          throw "Please only pass in one certificate/key at a time. More than one found in the pipelined input for parameter Certificate/private key."
+        }
       }
     }
     End {
-      if (($isWindows -eq $false) -and ([string]::IsNullOrEmpty($RsaPassword)))
+      if ([string]::IsNullOrEmpty($Jwt))
       {
-        $RsaPassword = Read-Host "Please enter in the password for your private key" -AsSecureString
-      }
-      if (($isWindows -eq $true) -or ($null -eq $isWindows))
-      {
-        if (($null -eq $certificate) -and ($null -eq $PrivateKey))
+        if (($isWindows -eq $false) -and ([string]::IsNullOrEmpty($RsaPassword)))
         {
-          $Certificate = Get-PureOneCertificate -ErrorAction SilentlyContinue
+          $RsaPassword = Read-Host "Please enter in the password for your private key" -AsSecureString
+        }
+        if (($isWindows -eq $true) -or ($null -eq $isWindows))
+        {
+          if (($null -eq $certificate) -and ($null -eq $PrivateKey))
+          {
+            $Certificate = Get-PureOneCertificate -ErrorAction SilentlyContinue
+            if ($null -eq $certificate)
+            {
+              throw "Please pass in a certificate or RSA private key."
+            }
+          }
           if ($null -eq $certificate)
           {
-            throw "Please pass in a certificate or RSA private key."
+              $jwt = New-PureOneJwt -privateKey $privateKey -pureAppID $pureAppID -expiration ((Get-Date).AddSeconds(60)) -ErrorAction Stop
           }
-        }
-        if ($null -eq $certificate)
-        {
-            $jwt = New-PureOneJwt -privateKey $privateKey -pureAppID $pureAppID -expiration ((Get-Date).AddSeconds(60)) -ErrorAction Stop
+          else 
+          {
+              $jwt = New-PureOneJwt -certificate $certificate -pureAppID $pureAppID -expiration ((Get-Date).AddSeconds(60)) -ErrorAction Stop
+          }
         }
         else 
         {
-            $jwt = New-PureOneJwt -certificate $certificate -pureAppID $pureAppID -expiration ((Get-Date).AddSeconds(60)) -ErrorAction Stop
-        }
-      }
-      else 
-      {
-        if (($isWindows -eq $false) -and ([string]::IsNullOrEmpty($PrivateKeyFileLocation)))
-        {
-          $PrivateKeyFileLocation = Get-PureOneCertificate -ErrorAction SilentlyContinue
-          if ([string]::IsNullOrEmpty($PrivateKeyFileLocation)) 
+          if (($isWindows -eq $false) -and ([string]::IsNullOrEmpty($PrivateKeyFileLocation)))
           {
-            throw "No default private key found. Please pass in a private key file location or create a new one with New-PureOneCertificate."
+            $PrivateKeyFileLocation = Get-PureOneCertificate -ErrorAction SilentlyContinue
+            if ([string]::IsNullOrEmpty($PrivateKeyFileLocation)) 
+            {
+              throw "No default private key found. Please pass in a private key file location or create a new one with New-PureOneCertificate."
+            }
           }
         }
-      }
-      try {
-        $jwt = New-PureOneJwt -PrivateKeyFileLocation $PrivateKeyFileLocation -RsaPassword $RsaPassword -pureAppID $pureAppID -expiration ((Get-Date).AddSeconds(60)) -ErrorAction Stop
-      }
-      catch
-      {
-      #throw ($_.errordetails.message |ConvertFrom-Json).error_description
+        try {
+          $jwt = New-PureOneJwt -PrivateKeyFileLocation $PrivateKeyFileLocation -RsaPassword $RsaPassword -pureAppID $pureAppID -expiration ((Get-Date).AddSeconds(60)) -ErrorAction Stop
+        }
+        catch
+        {
+        #throw ($_.errordetails.message |ConvertFrom-Json).error_description
+        }
       }
       $apiendpoint = "https://api.pure1.purestorage.com/oauth2/1.0/token"
       $AuthAction = @{
@@ -719,14 +850,15 @@ function New-PureOneConnection {
       }
       write-debug $pureOnetoken
       $orgInfo = Resolve-JWTtoken -token $pureOnetoken
+      $jwtInfo = Resolve-JWTtoken -token $jwt
       $date = get-date "1/1/1970"
       $date = $date.AddSeconds($orgInfo.exp).ToLocalTime()
       if (($null -eq $isWindows) -or ($isWindows -eq $true))
       {
-        $newOrg = New-Object -TypeName WindowsPureOneOrganization -ArgumentList $orgInfo.org,$pureOnetoken.access_token,$PureAppID,$orgInfo.max_role,$date,$certificate -ErrorAction Stop
+        $newOrg = New-Object -TypeName WindowsPureOneOrganization -ArgumentList $orgInfo.org,$pureOnetoken.access_token,$jwtInfo.iss,$orgInfo.max_role,$date,$certificate -ErrorAction Stop
       }
       else {
-        $newOrg = $newOrg = New-Object -TypeName UnixPureOneOrganization -ArgumentList $orgInfo.org,$pureOnetoken.access_token,$PureAppID,$orgInfo.max_role,$date,$RsaPassword,$PrivateKeyFileLocation -ErrorAction Stop
+        $newOrg = New-Object -TypeName UnixPureOneOrganization -ArgumentList $orgInfo.org,$pureOnetoken.access_token,$jwtInfo.iss,$orgInfo.max_role,$date,$RsaPassword,$PrivateKeyFileLocation -ErrorAction Stop
       }
       if ($Global:PureOneConnections.Count -eq 0)
       {
@@ -1912,7 +2044,7 @@ function Get-PureOneVolume {
       }
       if ($volumeName -ne "")
       {
-          $restQuery = $restQuery + "names=`'$($volumeName)`'"
+          $objectQuery = $objectQuery + "names=`'$($volumeName)`'"
           if (($arrayName -ne "") -or ($arrayId -ne ""))
           {
               $objectQuery = $objectQuery + "&"
