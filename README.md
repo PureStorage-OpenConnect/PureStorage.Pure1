@@ -93,11 +93,35 @@ https://www.codyhosterman.com/2020/11/improved-certificate-management-for-pure1-
 <!-- /wp:paragraph -->
 
 <!-- wp:list -->
-<ul><li>W is iterated for large updates</li><li>X is iterated for new cmdlets</li><li>Y is iterated for new functions to existing cmdlets</li><li>Z is iterated for bug fixes</li></ul>
+<ul><li>W is iterated for large updates</li><li>X is iterated for new cmdlets/significant enhancements</li><li>Y is iterated for new functions to existing cmdlets</li><li>Z is iterated for bug fixes</li></ul>
 <!-- /wp:list -->
 
 <!-- wp:heading -->
-<h2>Latest version 1.4.1.1 (November 25th, 2020)</h2>
+<h2>Latest version 1.4.2.0 (December 5th, 2020)</h2>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>See version details: <a href="https://github.com/PureStorage-OpenConnect/PureStorage.Pure1/projects/7" target="_blank" rel="noreferrer noopener">https://github.com/PureStorage-OpenConnect/PureStorage.Pure1/projects/6</a></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph -->
+<p><strong>New features:</strong></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:list -->
+<ul><li><a rel="noreferrer noopener" href="https://github.com/PureStorage-OpenConnect/PureStorage.Pure1/issues/41" target="_blank">Allow cmdlets to use default cert/key without specifying them.</a></li><li><a rel="noreferrer noopener" href="https://github.com/PureStorage-OpenConnect/PureStorage.Pure1/issues/39" target="_blank">Allow JWT to be sent to PureOneConnection directly requiring no cert/or key to be local to the script.</a></li><li><a rel="noreferrer noopener" href="https://github.com/PureStorage-OpenConnect/PureStorage.Pure1/issues/40" target="_blank">Allow for a certificate to be exported on a Windows system for backup or sharing.</a></li></ul>
+<!-- /wp:list -->
+
+<!-- wp:paragraph -->
+<p><strong>Bug Fixes:</strong></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:list -->
+<ul><li><a rel="noreferrer noopener" href="https://github.com/PureStorage-OpenConnect/PureStorage.Pure1/issues/35" target="_blank">Get-PureOneVolume did not filter properly on volume name</a></li><li><a href="https://github.com/PureStorage-OpenConnect/PureStorage.Pure1/issues/38" target="_blank" rel="noreferrer noopener">New-PureOneConnection did not work on PowerShell 5.x</a></li></ul>
+<!-- /wp:list -->
+
+<!-- wp:heading -->
+<h2>Version 1.4.1.1 (November 25th, 2020)</h2>
 <!-- /wp:heading -->
 
 <!-- wp:paragraph -->
@@ -121,7 +145,7 @@ https://www.codyhosterman.com/2020/11/improved-certificate-management-for-pure1-
 <!-- /wp:list -->
 
 <!-- wp:heading -->
-<h2>Previous Version 1.3.0.0 (September 24th, 2020)</h2>
+<h2>Version 1.3.0.0 (September 24th, 2020)</h2>
 <!-- /wp:heading -->
 
 <!-- wp:paragraph -->
