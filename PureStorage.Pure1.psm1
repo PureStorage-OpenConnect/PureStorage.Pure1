@@ -135,7 +135,14 @@ function Get-PureOneCertificate {
         $keyPath = $ExportDirectory
       }
     }
-    $DecryptedCertificatePassword = ConvertFrom-SecureString $CertificatePassword -AsPlainText
+    if ($PSVersionTable.PSEdition -ne "Core")
+    {
+      $bstr = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($CertificatePassword)
+      $DecryptedCertificatePassword = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($bstr)
+    }
+    else {
+      $DecryptedCertificatePassword = ConvertFrom-SecureString $CertificatePassword -AsPlainText
+    }
     $cert |Foreach-Object { [system.IO.file]::WriteAllBytes("$($keyPath)\PureOneCert.pfx",($_.Export('PFX', $DecryptedCertificatePassword)) ) }
     $foundKey = test-path "$($keyPath)\PureOneCert.pfx"
     if ($foundKey -eq $true)
