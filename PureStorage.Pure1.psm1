@@ -313,20 +313,55 @@ function New-PureOneCertificate {
     [CmdletBinding(DefaultParameterSetName='Certificate')]
     Param(
             [Parameter(Position=0,ParameterSetName='Certificate')]
+            [Parameter(Position=0,ParameterSetName='Import')]
             [String]$CertificateStore = "cert:\currentuser\my",
 
-            [Parameter(Position=1,ParameterSetName='RSAPair',mandatory=$True)]
+            [Parameter(Position=1,ParameterSetName='RSAPair')]
             [SecureString]$RsaPassword,
+
+            [Parameter(Position=2,ParameterSetName='RSAPair',mandatory=$True)]
+            [Parameter(Position=2,ParameterSetName='Import')]
+            [SecureString]$Password,
             
-            [Parameter(Position=2)]
+            [Parameter(Position=3)]
             [Switch]$Overwrite,
 
-            [Parameter(Position=3,ParameterSetName='RSAPair')]
+            [Parameter(Position=4,ParameterSetName='RSAPair')]
             [String]$PrivateKeyFileDirectory,
 
-            [Parameter(Position=3,ParameterSetName='Certificate')]
-            [Switch]$NonDefault
+            [Parameter(Position=5,ParameterSetName='Certificate')]
+            [Parameter(Position=5,ParameterSetName='Import')]
+            [Switch]$NonDefault,
+
+            [Parameter(Position=6,ParameterSetName='Import')]
+            [Switch]$Import,
+
+            [Parameter(Position=7,ParameterSetName='Import',mandatory=$True)]
+            [String]$CertificateFile
     )
+    if ($Import -eq $True)
+    {
+      if (($IsMacOS -eq $true) -or ($IsLinux -eq $true))
+      {
+        throw "Import feature is only valid for Windows environments."
+      }
+      $checkFile = Test-Path $CertificateFile
+      if ($checkFile -eq $false)
+      {
+        throw "$($certificateFile) is not found. Please confirm file path is correct."
+      }
+      $certExtension = [IO.Path]::GetExtension($CertificateFile)
+      if ($certExtension -ne ".pfx")
+      {
+        throw "The certificate should be a pfx file. File type found is $($certExtension)"
+      }
+      if ($Password.Length -eq 0)
+      {
+        $Password = Read-Host -Prompt "Please enter a password to be used for the private key" -AsSecureString
+      }
+      $ErrorActionPreference = "Stop"
+      $CertObj = Import-PfxCertificate -FilePath $CertificateFile -CertStoreLocation $CertificateStore -Password $Password -Exportable -ErrorAction Stop
+    }
     if ($IsWindows -eq $false)
     {
       if ([string]::IsNullOrEmpty($PrivateKeyFileDirectory))
@@ -347,17 +382,24 @@ function New-PureOneCertificate {
       {
         throw "A pre-existing Pure1 Private Key exists at $($keyPath)/PureOnePrivate.pem. Overwriting this key will require a new application ID to be generated for the new key in Pure1. Either re-run with the -overwrite switch, or specify a different directory in the -keypath parameter, or skip this cmdlet and pass in the path of your custom key location to New-PureOneConnection."
       }
-      if ($RsaPassword.Length -eq 0)
+      if ($Password.Length -eq 0)
       {
-        $RsaPassword = Read-Host -Prompt "Please enter a password to be used for the private key" -AsSecureString
+        if ($RsaPassword.Length -eq 0)
+        {
+          $Password = Read-Host -Prompt "Please enter a password to be used for the private key" -AsSecureString
+        }
+        else {
+          Write-Warning "The RsaPassword parameter is being deprecated. Please use the Password parameter instead."
+          $Password = $RsaPassword
+        }
       }
-      $DecryptedRsaPassword = ConvertFrom-SecureString $RsaPassword -AsPlainText 
-      if (($DecryptedRsaPassword.length -lt 4) -or ($DecryptedRsaPassword.length -gt 1022))
+      $DecryptedPassword = ConvertFrom-SecureString $Password -AsPlainText 
+      if (($DecryptedPassword.length -lt 4) -or ($DecryptedPassword.length -gt 1022))
       {
         throw "The entered private key password must be more than 4 characters and less than 1023 characters."
       }
       openssl genrsa -aes256 -passout pass:$DecryptedRsaPassword -out $keypath/PureOnePrivate.pem 2048 2>/dev/null
-      openssl rsa -in $keypath/PureOnePrivate.pem -outform PEM -pubout -out $keypath/PureOnePublic.pem -passin pass:$DecryptedRsaPassword 2>/dev/null
+      openssl rsa -in $keypath/PureOnePrivate.pem -outform PEM -pubout -out $keypath/PureOnePublic.pem -passin pass:$DecryptedPassword 2>/dev/null
       $keyPaths = [ordered]@{
         PrivateKey = "$($keyPath)/PureOnePrivate.pem"
         PublicKey = "$($keyPath)/PureOnePublic.pem"
@@ -366,15 +408,18 @@ function New-PureOneCertificate {
     }
     if (($null -eq $isWindows) -or ($isWindows -eq $true))
     {
-      if (([System.Environment]::OSVersion.Version).Major -eq 6)
+      if ($Import -eq $false)
       {
-          #For Windows 2012 support--less specific but the default certificate still works.
-          $CertObj = New-SelfSignedCertificate -certstorelocation $certificateStore -DnsName PureOneCert
-      }
-      else 
-      {
-          $policies = [System.Security.Cryptography.CngExportPolicies]::AllowPlaintextExport,[System.Security.Cryptography.CngExportPolicies]::AllowExport
-          $CertObj = New-SelfSignedCertificate -certstorelocation $certificateStore -HashAlgorithm "SHA256" -KeyLength 2048 -KeyAlgorithm RSA -KeyUsage DigitalSignature  -KeyExportPolicy $policies -Subject "PureOneCert" -ErrorAction Stop   
+        if (([System.Environment]::OSVersion.Version).Major -eq 6)
+        {
+            #For Windows 2012 support--less specific but the default certificate still works.
+            $CertObj = New-SelfSignedCertificate -certstorelocation $certificateStore -DnsName PureOneCert
+        }
+        else 
+        {
+            $policies = [System.Security.Cryptography.CngExportPolicies]::AllowPlaintextExport,[System.Security.Cryptography.CngExportPolicies]::AllowExport
+            $CertObj = New-SelfSignedCertificate -certstorelocation $certificateStore -HashAlgorithm "SHA256" -KeyLength 2048 -KeyAlgorithm RSA -KeyUsage DigitalSignature  -KeyExportPolicy $policies -Subject "PureOneCert" -ErrorAction Stop   
+        }
       }
       $cert = Get-ChildItem -Path $CertObj.PSPath
       if ($NonDefault -eq $false)
