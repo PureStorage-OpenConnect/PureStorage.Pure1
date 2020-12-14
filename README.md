@@ -1,11 +1,7 @@
 # PureStorage.Pure1
  Pure Storage Pure1 Module
 <!-- wp:paragraph -->
-<p>To help our customers I have written a module that makes it easy to connect to the Pure1 REST API with PowerShell.</p>
-<!-- /wp:paragraph -->
-
-<!-- wp:paragraph -->
-<p>The module is called&nbsp;<a href="https://www.powershellgallery.com/packages/PureStorage.Pure1">PureStorage.Pure1</a></p>
+<p>The module is called <a href="https://www.powershellgallery.com/packages/PureStorage.Pure1">PureStorage.Pure1</a> and can be used to interact with the Pure1 API via PowerShell.</p>
 <!-- /wp:paragraph -->
 
 <!-- wp:paragraph -->
@@ -49,30 +45,6 @@
 <!-- /wp:preformatted -->
 
 <!-- wp:paragraph -->
-<p>Blog post on Pure1 REST Authentication:</p>
-<!-- /wp:paragraph -->
-
-<!-- wp:core-embed/wordpress {"url":"https://www.codyhosterman.com/2019/12/pure1-rest-api-authentication-made-easy/","type":"wp-embed","providerNameSlug":"cody-hosterman","className":""} -->
-<figure class="wp-block-embed-wordpress wp-block-embed is-type-wp-embed is-provider-cody-hosterman"><div class="wp-block-embed__wrapper">
-https://www.codyhosterman.com/2019/12/pure1-rest-api-authentication-made-easy/
-</div></figure>
-<!-- /wp:core-embed/wordpress -->
-
-<!-- wp:paragraph -->
-<p>For Linux or MacOS authentication:</p>
-<!-- /wp:paragraph -->
-
-<!-- wp:paragraph -->
-<p><a href="https://www.codyhosterman.com/2020/09/pure1-powershell-module-core-support-and-more/" data-type="post" data-id="6867">Pure1 PowerShell Module Core Support (and more!)</a></p>
-<!-- /wp:paragraph -->
-
-<!-- wp:core-embed/wordpress {"url":"https://www.codyhosterman.com/2020/11/improved-certificate-management-for-pure1-powershell-module/","type":"wp-embed","providerNameSlug":"cody-hosterman","className":""} -->
-<figure class="wp-block-embed-wordpress wp-block-embed is-type-wp-embed is-provider-cody-hosterman"><div class="wp-block-embed__wrapper">
-https://www.codyhosterman.com/2020/11/improved-certificate-management-for-pure1-powershell-module/
-</div></figure>
-<!-- /wp:core-embed/wordpress -->
-
-<!-- wp:paragraph -->
 <p>Use either get-help or get-command to see the details:</p>
 <!-- /wp:paragraph -->
 
@@ -97,7 +69,31 @@ https://www.codyhosterman.com/2020/11/improved-certificate-management-for-pure1-
 <!-- /wp:list -->
 
 <!-- wp:heading -->
-<h2>Latest version 1.4.2.0 (December 5th, 2020)</h2>
+<h2>Latest version 1.4.3.0 (December 12th, 2020)</h2>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>See version details:<a href="https://github.com/PureStorage-OpenConnect/PureStorage.Pure1/issues/43"> https://github.com/PureStorage-OpenConnect/PureStorage.Pure1/issues/43</a></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph -->
+<p><strong>New features:</strong></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:list -->
+<ul><li><a href="https://github.com/PureStorage-OpenConnect/PureStorage.Pure1/issues/43" target="_blank" rel="noreferrer noopener">Add import parameter to New-PureOneCertificate</a></li></ul>
+<!-- /wp:list -->
+
+<!-- wp:paragraph -->
+<p><strong>Bug Fixes:</strong></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph -->
+<p>None</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:heading -->
+<h2>Version 1.4.2.0 (December 5th, 2020)</h2>
 <!-- /wp:heading -->
 
 <!-- wp:paragraph -->
