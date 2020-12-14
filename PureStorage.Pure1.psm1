@@ -333,13 +333,10 @@ function New-PureOneCertificate {
             [Parameter(Position=5,ParameterSetName='Import')]
             [Switch]$NonDefault,
 
-            [Parameter(Position=6,ParameterSetName='Import')]
-            [Switch]$Import,
-
-            [Parameter(Position=7,ParameterSetName='Import',mandatory=$True)]
+            [Parameter(Position=6,ParameterSetName='Import',mandatory=$True)]
             [String]$CertificateFile
     )
-    if ($Import -eq $True)
+    if (![string]::IsNullOrEmpty($CertificateFile))
     {
       if (($IsMacOS -eq $true) -or ($IsLinux -eq $true))
       {
@@ -408,7 +405,7 @@ function New-PureOneCertificate {
     }
     if (($null -eq $isWindows) -or ($isWindows -eq $true))
     {
-      if ($Import -eq $false)
+      if ([string]::IsNullOrEmpty($CertificateFile))
       {
         if (([System.Environment]::OSVersion.Version).Major -eq 6)
         {
