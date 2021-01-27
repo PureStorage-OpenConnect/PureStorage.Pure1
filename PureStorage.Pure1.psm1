@@ -885,7 +885,7 @@ function New-PureOneConnection {
         #throw ($_.errordetails.message |ConvertFrom-Json).error_description
         }
       }
-      $apiendpoint = "https://api.pure1.purestorage.com/oauth2/1.0/token"
+      $apiendpoint = $Global:PureOneRestEndpointURL 
       $AuthAction = @{
           grant_type = "urn:ietf:params:oauth:grant-type:token-exchange"
           subject_token = $jwt
@@ -998,7 +998,7 @@ function New-PureOneOperation {
   )
   $pureOneHeader = Set-PureOneHeader -pureOneToken $pureOneToken -ErrorAction Stop
   Write-Debug $pureOneHeader.authorization
-  $apiendpoint = "https://api.pure1.purestorage.com/api/$($global:pureOneRestVersion)/" + $resourceType + $queryFilter
+  $apiendpoint = "$($global:PureOneRestUrl)/$($global:pureOneRestVersion)/" + $resourceType + $queryFilter
   Write-Debug $apiendpoint
   $ErrorActionPreference = "Stop"
   if ($jsonBody -ne "")
@@ -2742,6 +2742,270 @@ function Get-PureOneArrayLoadMeter {
     }
     return $loadMeters
 }
+function Get-PureOneLicense {
+  <#
+  .SYNOPSIS
+    Returns all Pure Storage licenses.
+  .DESCRIPTION
+    Returns all or specified Pure Storage licenses.
+  .INPUTS
+    None required. Optional inputs are subscription or license information
+  .OUTPUTS
+    Returns the Pure Storage licenses information in Pure1.
+  .EXAMPLE
+    PS C:\ Get-PureOneLicense
+
+    Returns all licenses
+  .EXAMPLE
+    PS C:\ Get-PureOneLicense -Name mytestlicense
+
+    Returns the license with the specified name.
+  .EXAMPLE
+    PS C:\ Get-PureOneLicense -ArrayName myFlashArray
+
+    Returns the license for the specified array name.
+  .EXAMPLE
+    PS C:\ Get-PureOneLicense -ArrayId f5b5f364-c644-441d-adab-5ab894924255
+
+    Returns the license for the specified array ID.
+  .EXAMPLE
+    PS C:\ Get-PureOneLicense -SubscriptionName SC-9999990
+
+    Returns all licenses under the specified subscription name 
+  .EXAMPLE
+    PS C:\ Get-PureOneLicense -SubscriptionId 4844ba62-6e15-4d6f-8e51-40257c28dab1
+
+    Returns all licenses under the specified subscription ID 
+  .EXAMPLE
+    PS C:\ Get-PureOneLicense -ServiceTierType Block
+
+    Returns all licenses for the block storage.
+  .EXAMPLE
+    PS C:\ Get-PureOneLicense -ServiceTierLevel Performance
+
+    Returns all licenses for the performance tier
+  .NOTES
+    Version:        1.0
+    Author:         Cody Hosterman https://codyhosterman.com
+    Creation Date:  01/26/2021
+    Purpose/Change: Initial release
+
+  *******Disclaimer:******************************************************
+  This scripts are offered "as is" with no warranty.  While this 
+  scripts is tested and working in my environment, it is recommended that you test 
+  this script in a test lab before using in a production environment. Everyone can 
+  use the scripts/commands provided here without any written permission but I
+  will not be liable for any damage or loss to the system.
+  ************************************************************************
+  #>
+
+  [CmdletBinding()]
+  Param(
+          [Parameter(Position=0)]
+          [string]$Id,
+          
+          [Parameter(Position=1)]
+          [ValidateSet("Block","UFFO")]
+          [string]$ServiceTierType,
+
+          [Parameter(Position=2)]
+          [ValidateSet("Ultra","Premium","Performance","Capacity")]
+          [string]$ServiceTierLevel,
+
+          [Parameter(Position=3)]
+          [string]$Name,
+
+          [Parameter(Position=4)]
+          [string]$SubscriptionId,
+
+          [Parameter(Position=5)]
+          [string]$SubscriptionName,
+
+          [Parameter(Position=6)]
+          [string]$ArrayId,
+
+          [Parameter(Position=7)]
+          [string]$ArrayName,
+
+          [Parameter(Position=8)]
+          [string]$PureOneToken,
+
+          [Parameter(Position=9)]
+          [PureOneOrganization[]]$PureOneOrganization
+  )
+    if ((![string]::IsNullOrWhiteSpace($Name)) -and (![string]::IsNullOrWhiteSpace($Id)))
+    {
+      throw "Please only pass in a license name or an ID. Not both."
+    }
+    if ((![string]::IsNullOrWhiteSpace($SubscriptionName)) -and (![string]::IsNullOrWhiteSpace($SubscriptionId)))
+    {
+      throw "Please only pass in a subscription name or an ID. Not both."
+    }
+    if ((![string]::IsNullOrWhiteSpace($ArrayName)) -and (![string]::IsNullOrWhiteSpace($ArrayId)))
+    {
+      throw "Please only pass in a array name or an ID. Not both."
+    }
+    if ($null -ne $global:pureOneRateLimit)
+    {
+      if ($Global:pureOneRateLimit -in 1..1000)
+      {
+        $objectQuery = "?limit=$($global:pureOneRateLimit)&"
+      }
+      else {
+        throw "Pure1 Rate limit set to invalid amount. Must be between 1-1000. Currently set to $($global:pureOneRateLimit)"
+      }
+    }
+    else {
+      $objectQuery = "?"
+    }
+    if (![string]::IsNullOrWhiteSpace($Name))
+    {
+        $objectQuery = $objectQuery + "names=`'$($Name)`'"
+        if (![string]::IsNullOrWhiteSpace($Id))
+        {
+            $objectQuery = $objectQuery + "&ids=`'$($Id)`'"
+        }
+    }
+    elseif (![string]::IsNullOrWhiteSpace($Id)) {
+      $objectQuery = $objectQuery + "ids=`'$($Id)`'"
+    }
+    $tokens = @()
+    if ([string]::IsNullOrWhiteSpace($pureOneToken))
+    {
+      $tokens += Get-PureOneToken -pureOneOrganization $pureOneOrganization
+    }
+    else{
+      $tokens += $pureOneToken
+    }
+    $pureLicenses = @()
+    foreach ($token in $tokens) {
+      $pureLicenses += New-PureOneOperation -resourceType "subscription-licenses" -queryFilter $objectQuery -pureOneToken $token -restOperationType GET -ErrorAction SilentlyContinue
+    }
+    if (![string]::IsNullOrWhiteSpace($ServiceTierType))
+    {
+      $pureLicenses = $pureLicenses |Where-Object {$_.service_tier -like "*$($serviceTierType)*"}
+    }
+    if (![string]::IsNullOrWhiteSpace($ServiceTierLevel))
+    {
+      $pureLicenses = $pureLicenses |Where-Object {$_.service_tier -like "*$($serviceTierLevel)"}
+    }
+    if (![string]::IsNullOrWhiteSpace($SubscriptionId))
+    {
+      $pureLicenses = $pureLicenses |Where-Object {$_.subscription.id -eq $SubscriptionId}
+    }
+    if (![string]::IsNullOrWhiteSpace($SubscriptionName))
+    {
+      $pureLicenses = $pureLicenses |Where-Object {$_.subscription.name -eq $SubscriptionName}
+    }
+    if (![string]::IsNullOrWhiteSpace($ArrayId))
+    {
+      $pureLicenses = $pureLicenses |Where-Object {$_.resources.id -eq $ArrayId}
+    }
+    if (![string]::IsNullOrWhiteSpace($ArrayName))
+    {
+      $pureLicenses = $pureLicenses |Where-Object {$_.resources.name -eq $ArrayName}
+    }
+    if (($pureLicenses | Measure-Object).Count -eq 0)
+    {
+      throw "No matching licenses were found on entered Pure1 organization(s)."
+    }
+    return $pureLicenses
+}
+
+function Get-PureOneSubscription {
+  <#
+  .SYNOPSIS
+    Returns all Pure Storage subscriptions.
+  .DESCRIPTION
+    Returns all or specified Pure Storage subscriptions.
+  .INPUTS
+    None required. Optional inputs are subscription
+  .OUTPUTS
+    Returns the Pure Storage subscription information in Pure1.
+  .EXAMPLE
+    PS C:\ Get-PureOneSubscription
+
+    Returns all subscriptions
+  .EXAMPLE
+    PS C:\ Get-PureOneSubscription -Name mytestsub
+
+    Returns the subscription with the specified name.
+
+  .NOTES
+    Version:        1.0
+    Author:         Cody Hosterman https://codyhosterman.com
+    Creation Date:  01/26/2021
+    Purpose/Change: Initial release
+
+  *******Disclaimer:******************************************************
+  This scripts are offered "as is" with no warranty.  While this 
+  scripts is tested and working in my environment, it is recommended that you test 
+  this script in a test lab before using in a production environment. Everyone can 
+  use the scripts/commands provided here without any written permission but I
+  will not be liable for any damage or loss to the system.
+  ************************************************************************
+  #>
+
+  [CmdletBinding()]
+  Param(
+          [Parameter(Position=0)]
+          [string]$Id,
+          
+          [Parameter(Position=1)]
+          [string]$Name,
+
+          [Parameter(Position=2)]
+          [string]$PureOneToken,
+
+          [Parameter(Position=3)]
+          [PureOneOrganization[]]$PureOneOrganization
+  )
+    if ((![string]::IsNullOrWhiteSpace($Name)) -and (![string]::IsNullOrWhiteSpace($Id)))
+    {
+      throw "Please only pass in a license name or an ID. Not both."
+    }
+    if ($null -ne $global:pureOneRateLimit)
+    {
+      if ($Global:pureOneRateLimit -in 1..1000)
+      {
+        $objectQuery = "?limit=$($global:pureOneRateLimit)&"
+      }
+      else {
+        throw "Pure1 Rate limit set to invalid amount. Must be between 1-1000. Currently set to $($global:pureOneRateLimit)"
+      }
+    }
+    else {
+      $objectQuery = "?"
+    }
+    if (![string]::IsNullOrWhiteSpace($Name))
+    {
+        $objectQuery = $objectQuery + "names=`'$($Name)`'"
+        if (![string]::IsNullOrWhiteSpace($Id))
+        {
+            $objectQuery = $objectQuery + "&ids=`'$($Id)`'"
+        }
+    }
+    elseif (![string]::IsNullOrWhiteSpace($Id)) {
+      $objectQuery = $objectQuery + "ids=`'$($Id)`'"
+    }
+    $tokens = @()
+    if ([string]::IsNullOrWhiteSpace($pureOneToken))
+    {
+      $tokens += Get-PureOneToken -pureOneOrganization $pureOneOrganization
+    }
+    else{
+      $tokens += $pureOneToken
+    }
+    $pureSubscriptions = @()
+    foreach ($token in $tokens) {
+      $pureSubscriptions += New-PureOneOperation -resourceType "subscriptions" -queryFilter $objectQuery -pureOneToken $token -restOperationType GET -ErrorAction SilentlyContinue
+    }
+    if (($pureSubscriptions | Measure-Object).Count -eq 0)
+    {
+      throw "No matching subscriptions were found on entered Pure1 organization(s)."
+    }
+    return $pureSubscriptions
+}
 
 #internal functions
 function Resolve-JWTtoken {
@@ -2882,6 +3146,8 @@ class WindowsPureOneOrganization : PureOneOrganization {
 $global:pureOneRateLimit = $null
 $global:pureOneRestVersion = "1.latest"
 $Global:PureOneConnections = @()
+$Global:PureOneRestUrl = "https://api.pure1.purestorage.com/api"
+$Global:PureOneRestEndpointUrl = "https://api.pure1.purestorage.com/oauth2/1.0/token"
 
 New-Alias -Name Get-PureOneArrayBusyMeter -Value Get-PureOneArrayLoadMeter
 New-Alias -Name New-PureOneRestConnection -Value New-PureOneConnection
