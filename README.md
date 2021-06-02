@@ -69,7 +69,27 @@
 <!-- /wp:list -->
 
 <!-- wp:heading -->
-<h2>Latest version 1.4.4.0 (January 26th, 2021)</h2>
+<h2>Latest version 1.4.4.1 (June 2nd, 2021)</h2>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>See version details:<a href="https://github.com/PureStorage-OpenConnect/PureStorage.Pure1/issues/43"> https://github.com/PureStorage-OpenConnect/PureStorage.Pure1/issues/45</a></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph -->
+<p><strong>New features:</strong></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph -->
+<p><strong>Bug Fixes:</strong></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:list -->
+<ul><li>Fix for linux/mac based JWT generation</li></ul>
+<!-- /wp:list -->
+
+<!-- wp:heading -->
+<h2>Version 1.4.4.0 (January 26th, 2021)</h2>
 <!-- /wp:heading -->
 
 <!-- wp:paragraph -->
