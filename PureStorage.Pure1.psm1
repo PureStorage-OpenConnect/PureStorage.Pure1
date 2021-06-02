@@ -729,12 +729,9 @@ function New-PureOneJwt {
           $DecryptedRsaPassword = ConvertFrom-SecureString $RsaPassword -AsPlainText
           set-content -value $tosign -Path ./PureOneHeader.txt -NoNewline
           Start-Process -FilePath ./openssl -ArgumentList "dgst -binary -sha256 -sign $($PrivateKeyFileLocation) -passin pass:$($DecryptedRsaPassword) -out ./PureOneSignedHeader.txt ./PureOneHeader.txt"
+          #file lock often still exists, wait for it to release.
+          start-sleep 1
           $signature = openssl base64 -in ./PureOneSignedHeader.txt
-          if ($null -eq $signature)
-          {
-            #sometimes this needs retried, honestly not sure why.
-            $signature = openssl base64 -in ./PureOneSignedHeader.txt
-          }
           $signature = $signature -replace '\+','-' -replace '/','_' -replace '='
           Remove-Item -Path ./PureOneSignedHeader.txt
           Remove-Item -Path ./PureOneHeader.txt
