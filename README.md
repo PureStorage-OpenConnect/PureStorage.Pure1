@@ -1,7 +1,7 @@
 # PureStorage.Pure1
  Pure Storage Pure1 Module
 <!-- wp:paragraph -->
-<p>The module is called <a href="https://www.powershellgallery.com/packages/PureStorage.Pure1">PureStorage.Pure1</a> and can be used to interact with the Pure1 API via PowerShell.</p>
+<p>The module is called&nbsp;<a href="https://www.powershellgallery.com/packages/PureStorage.Pure1">PureStorage.Pure1</a> and can be used to interact with the Pure1 API via PowerShell.</p>
 <!-- /wp:paragraph -->
 
 <!-- wp:paragraph -->
@@ -48,8 +48,8 @@
 <p>Use either get-help or get-command to see the details:</p>
 <!-- /wp:paragraph -->
 
-<!-- wp:image {"id":7229,"sizeSlug":"large"} -->
-<figure class="wp-block-image size-large"><img src="https://www.codyhosterman.com/wp-content/uploads/2020/11/image-47-1024x557.png" alt="" class="wp-image-7229"/></figure>
+<!-- wp:image {"id":7505,"sizeSlug":"large","linkDestination":"media"} -->
+<figure class="wp-block-image size-large"><a href="https://www.codyhosterman.com/wp-content/uploads/2021/01/image-201.png"><img src="https://www.codyhosterman.com/wp-content/uploads/2021/01/image-201-1024x608.png" alt="" class="wp-image-7505"/></a></figure>
 <!-- /wp:image -->
 
 <!-- wp:image {"id":6900,"sizeSlug":"large"} -->
@@ -69,7 +69,31 @@
 <!-- /wp:list -->
 
 <!-- wp:heading -->
-<h2>Latest version 1.4.3.0 (December 12th, 2020)</h2>
+<h2>Latest version 1.4.4.0 (January 26th, 2021)</h2>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>See version details:<a href="https://github.com/PureStorage-OpenConnect/PureStorage.Pure1/issues/43"> https://github.com/PureStorage-OpenConnect/PureStorage.Pure1/projects/8</a></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph -->
+<p><strong>New features:</strong></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:list -->
+<ul><li><a href="https://github.com/PureStorage-OpenConnect/PureStorage.Pure1/issues/44" target="_blank" rel="noreferrer noopener">Get-PureOneSubscription</a></li><li><a href="https://github.com/PureStorage-OpenConnect/PureStorage.Pure1/issues/44" target="_blank" rel="noreferrer noopener">Get-PureOneLicense</a></li></ul>
+<!-- /wp:list -->
+
+<!-- wp:paragraph -->
+<p><strong>Bug Fixes:</strong></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph -->
+<p>None</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:heading -->
+<h2>Version 1.4.3.1 (December 12th, 2020)</h2>
 <!-- /wp:heading -->
 
 <!-- wp:paragraph -->
