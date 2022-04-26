@@ -395,7 +395,7 @@ function New-PureOneCertificate {
       {
         throw "The entered private key password must be more than 4 characters and less than 1023 characters."
       }
-      openssl genrsa -aes256 -passout pass:$DecryptedRsaPassword -out $keypath/PureOnePrivate.pem 2048 2>/dev/null
+      openssl genrsa -aes256 -passout pass:$DecryptedPassword -out $keypath/PureOnePrivate.pem 2048 2>/dev/null
       openssl rsa -in $keypath/PureOnePrivate.pem -outform PEM -pubout -out $keypath/PureOnePublic.pem -passin pass:$DecryptedPassword 2>/dev/null
       $keyPaths = [ordered]@{
         PrivateKey = "$($keyPath)/PureOnePrivate.pem"
