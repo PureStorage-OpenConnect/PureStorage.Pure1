@@ -1946,8 +1946,35 @@ function Get-PureOneMetric {
       #set granularity if not set
       if ($granularity -eq 0)
       {
-          $granularity = $metricDetails.availabilities.resolution
+          if ($metricDetails.availabilities.Count -gt 1) {
+              #some of the metrics have multiple availabilities defined
+              #caller needs to specify metric granularity explicitly through the input parameters in this case
+              throw "Multiple granularities are available for the metric $($metricDetails.name). Specify the desired granularity explicitly, and re-run the command."
+          }
+          else {
+             $granularity = $metricDetails.availabilities.resolution
+          }
       }
+
+      [datetime]$epoch = '1970-01-01 00:00:00'
+      #set start time to current time (if not entered) and convert to epoch time
+      if ($null -eq $startTime)
+      {
+          if ($metricDetails.availabilities.Count -gt 1) {
+              #some of the metrics have multiple availabilities defined
+              #caller needs to specify metric history start time explicitly through the input parameters in this case
+              throw "Multiple granularities and history time ranges are available for the metric $($metricDetails.name). Specify the desired start time explicitly, and re-run the command."
+          }
+          else {
+            $startTime = $epoch.AddMilliseconds($metricDetails._as_of - $metricDetails.availabilities[0].retention)
+          }
+      }
+      else {
+          $startTime = $startTime.ToUniversalTime()
+      }
+
+      $startEpoch = (New-TimeSpan -Start $epoch -End $startTime).TotalMilliSeconds
+      $startEpoch = [math]::Round($startEpoch)
 
       #set end time to start time minus retention for that stat (if not entered) and convert to epoch time
       if ($null -eq $endTime)
@@ -1958,20 +1985,8 @@ function Get-PureOneMetric {
       else {
           $endTime = $endTime.ToUniversalTime()
       }
-      [datetime]$epoch = '1970-01-01 00:00:00'
       $endEpoch = (New-TimeSpan -Start $epoch -End $endTime).TotalMilliSeconds
       $endEpoch = [math]::Round($endEpoch)
-
-      #set start time to current time (if not entered) and convert to epoch time
-      if ($null -eq $startTime)
-      {
-          $startTime = $epoch.AddMilliseconds($metricDetails._as_of - $metricDetails.availabilities.retention)
-      }
-      else {
-          $startTime = $startTime.ToUniversalTime()
-      }
-      $startEpoch = (New-TimeSpan -Start $epoch -End $startTime).TotalMilliSeconds
-      $startEpoch = [math]::Round($startEpoch)
 
       #building query
       if ($average -eq $true)
@@ -2651,6 +2666,7 @@ function Get-PureOneArrayLoadMeter {
       #set granularity if not set
       if ($granularity -eq 0)
       {
+          #only one availability is defined for the array_total_load metric at the moment
           $granularity = $metricDetails.availabilities.resolution
       }
 
@@ -2670,6 +2686,7 @@ function Get-PureOneArrayLoadMeter {
       #set start time to current time (if not entered) and convert to epoch time
       if ($startTime -eq $null)
       {
+          #only one availability is defined for the array_total_load metric at the moment
           $startTime = $epoch.AddMilliseconds($metricDetails._as_of - $metricDetails.availabilities.retention)
       }
       else {
