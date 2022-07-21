@@ -1947,9 +1947,9 @@ function Get-PureOneMetric {
       if ($granularity -eq 0)
       {
           if ($metricDetails.availabilities.Count -gt 1) {
-              #some of the metrics have multiple availabilities defined.
+              #some of the metrics have multiple availabilities defined
               #caller needs to specify metric granularity explicitly through the input parameters in this case
-              throw "Multiple granularities are available for the metric $($metricDetails.name). Specify the target granularity explicitly and re-run the command."
+              throw "Multiple granularities are available for the metric $($metricDetails.name). Specify the desired granularity explicitly, and re-run the command."
           }
           else {
              $granularity = $metricDetails.availabilities.resolution
@@ -1961,9 +1961,9 @@ function Get-PureOneMetric {
       if ($null -eq $startTime)
       {
           if ($metricDetails.availabilities.Count -gt 1) {
-              #some of the metrics have multiple availabilities defined.
+              #some of the metrics have multiple availabilities defined
               #caller needs to specify metric history start time explicitly through the input parameters in this case
-              throw "Multiple granularities and history time ranges are available for the metric $($metricDetails.name). Specify the target start time explicitly and re-run the command."
+              throw "Multiple granularities and history time ranges are available for the metric $($metricDetails.name). Specify the desired start time explicitly, and re-run the command."
           }
           else {
             $startTime = $epoch.AddMilliseconds($metricDetails._as_of - $metricDetails.availabilities[0].retention)

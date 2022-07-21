@@ -69,6 +69,26 @@
 <!-- /wp:list -->
 
 <!-- wp:heading -->
+<h2>Latest version 1.4.4.3 (July 21st, 2022)</h2>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>See version details:<a href="https://github.com/PureStorage-OpenConnect/PureStorage.Pure1/issues/52"> https://github.com/PureStorage-OpenConnect/PureStorage.Pure1/issues/52</a></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph -->
+<p><strong>New features:</strong></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph -->
+<p><strong>Bug Fixes:</strong></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:list -->
+<ul><li>Enhanced handling of metrics with multiple availabilities by the Get-PureOneMetric command</li></ul>
+<!-- /wp:list -->
+
+<!-- wp:heading -->
 <h2>Latest version 1.4.4.1 (June 2nd, 2021)</h2>
 <!-- /wp:heading -->
 
