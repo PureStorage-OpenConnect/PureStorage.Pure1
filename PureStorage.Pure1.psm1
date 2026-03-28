@@ -395,8 +395,9 @@ function New-PureOneCertificate {
       {
         throw "The entered private key password must be more than 4 characters and less than 1023 characters."
       }
-      openssl genrsa -aes256 -passout pass:$DecryptedPassword -out $keypath/PureOnePrivate.pem 2048 2>/dev/null
-      openssl rsa -in $keypath/PureOnePrivate.pem -outform PEM -pubout -out $keypath/PureOnePublic.pem -passin pass:$DecryptedPassword 2>/dev/null
+      # Quote paths to handle spaces in directory names
+      & openssl genrsa -aes256 -passout "pass:$DecryptedPassword" -out "$keypath/PureOnePrivate.pem" 2048 2>$null
+      & openssl rsa -in "$keypath/PureOnePrivate.pem" -outform PEM -pubout -out "$keypath/PureOnePublic.pem" -passin "pass:$DecryptedPassword" 2>$null
       $keyPaths = [ordered]@{
         PrivateKey = "$($keyPath)/PureOnePrivate.pem"
         PublicKey = "$($keyPath)/PureOnePublic.pem"
@@ -532,7 +533,8 @@ function Get-PureOnePublicKey {
           throw "File not found at $($PrivateKeyFileLocation). Check path and try again."
         }
         $DecryptedRsaPassword = ConvertFrom-SecureString $RsaPassword -AsPlainText
-        openssl rsa -in $($PrivateKeyFileLocation) -outform PEM -pubout -out ./PureOnePublicTemp.pem -passin pass:$DecryptedRsaPassword  2>/dev/null
+        # Quote the private key path to handle spaces in the path
+        & openssl rsa -in "$PrivateKeyFileLocation" -outform PEM -pubout -out ./PureOnePublicTemp.pem -passin "pass:$DecryptedRsaPassword" 2>$null
         $checkPath = Test-Path ./PureOnePublicTemp.pem
         if ($checkPath -eq $false)
         {
@@ -728,10 +730,11 @@ function New-PureOneJwt {
           }
           $DecryptedRsaPassword = ConvertFrom-SecureString $RsaPassword -AsPlainText
           set-content -value $tosign -Path ./PureOneHeader.txt -NoNewline
-          Start-Process -FilePath ./openssl -ArgumentList "dgst -binary -sha256 -sign $($PrivateKeyFileLocation) -passin pass:$($DecryptedRsaPassword) -out ./PureOneSignedHeader.txt ./PureOneHeader.txt"
+          # Quote the private key path to handle spaces in the path
+          & openssl dgst -binary -sha256 -sign "$PrivateKeyFileLocation" -passin "pass:$DecryptedRsaPassword" -out ./PureOneSignedHeader.txt ./PureOneHeader.txt 2>$null
           #file lock often still exists, wait for it to release.
           start-sleep 1
-          $signature = openssl base64 -in ./PureOneSignedHeader.txt
+          $signature = & openssl base64 -in ./PureOneSignedHeader.txt
           $signature = $signature -replace '\+','-' -replace '/','_' -replace '='
           Remove-Item -Path ./PureOneSignedHeader.txt
           Remove-Item -Path ./PureOneHeader.txt
@@ -2240,7 +2243,7 @@ function Get-PureOnePod {
         }
         $purePods = @()
         foreach ($token in $tokens) {
-          $purePods += New-PureOneOperation -resourceType "pods" -queryFilter $objectQuery -pureOneToken $token -restOperationType GET-ErrorAction SilentlyContinue
+          $purePods += New-PureOneOperation -resourceType "pods" -queryFilter $objectQuery -pureOneToken $token -restOperationType GET -ErrorAction SilentlyContinue
         }
         if (($purePods | Measure-Object).Count -eq 0)
         {
@@ -3155,6 +3158,1176 @@ class WindowsPureOneOrganization : PureOneOrganization {
     $this.updateLock = $false
     return 
   }
+}
+function Get-PureOneController {
+    <#
+    .SYNOPSIS
+      Returns all FlashArray controllers from your Pure1 account.
+    .DESCRIPTION
+      Returns all FlashArray controllers from your Pure1 account. Allows for filters.
+    .INPUTS
+      None required. Optional inputs are controller name, array name, and Pure1 access token.
+    .OUTPUTS
+      Returns the FlashArray controller information in Pure1.
+    .EXAMPLE
+      PS C:\ Get-PureOneController
+
+      Returns all controllers in all connected Pure1 organizations
+    .EXAMPLE
+      PS C:\ Get-PureOneController -ArrayName myArray
+
+      Returns all controllers for the specified array
+    .NOTES
+      Version:        1.0
+      Author:         Pure Storage
+      Creation Date:  2026-03-28
+      Purpose/Change: Initial release
+    #>
+
+    [CmdletBinding()]
+    Param(
+            [Parameter(Position=0)]
+            [string]$ControllerName,
+
+            [Parameter(Position=1)]
+            [string]$ArrayName,
+
+            [Parameter(Position=2)]
+            [string]$ControllerId,
+
+            [Parameter(Position=3)]
+            [string]$PureOneToken,
+
+            [Parameter(Position=4)]
+            [PureOneOrganization[]]$PureOneOrganization
+    )
+    $restQuery = ""
+    if ($ControllerName -ne "") {
+        $restQuery = "?names=`'$($ControllerName)`'"
+    }
+    if ($ArrayName -ne "") {
+        if ($restQuery -eq "") {
+            $restQuery = "?filter=arrays[any].name=`'$($ArrayName)`'"
+        } else {
+            $restQuery += "&filter=arrays[any].name=`'$($ArrayName)`'"
+        }
+    }
+    if ($ControllerId -ne "") {
+        $restQuery = "?ids=`'$($ControllerId)`'"
+    }
+    $tokens = @()
+    if ([string]::IsNullOrWhiteSpace($pureOneToken)) {
+        $tokens += Get-PureOneToken -pureOneOrganization $pureOneOrganization
+    } else {
+        $tokens += $pureOneToken
+    }
+    $pureControllers = @()
+    foreach ($token in $tokens) {
+        $pureControllers += New-PureOneOperation -resourceType "controllers" -queryFilter $restQuery -pureOneToken $token -restOperationType GET -ErrorAction SilentlyContinue
+    }
+    if (($pureControllers | Measure-Object).Count -eq 0) {
+        throw "No matching controllers were found on entered Pure1 organization(s)."
+    }
+    return $pureControllers
+}
+function Get-PureOneDrive {
+    <#
+    .SYNOPSIS
+      Returns all FlashArray drives from your Pure1 account.
+    .DESCRIPTION
+      Returns all FlashArray drives from your Pure1 account. Allows for filters.
+    .INPUTS
+      None required. Optional inputs are drive name, array name, and Pure1 access token.
+    .OUTPUTS
+      Returns the FlashArray drive information in Pure1.
+    .EXAMPLE
+      PS C:\ Get-PureOneDrive
+
+      Returns all drives in all connected Pure1 organizations
+    .EXAMPLE
+      PS C:\ Get-PureOneDrive -ArrayName myArray
+
+      Returns all drives for the specified array
+    .NOTES
+      Version:        1.0
+      Author:         Pure Storage
+      Creation Date:  2026-03-28
+      Purpose/Change: Initial release
+    #>
+
+    [CmdletBinding()]
+    Param(
+            [Parameter(Position=0)]
+            [string]$DriveName,
+
+            [Parameter(Position=1)]
+            [string]$ArrayName,
+
+            [Parameter(Position=2)]
+            [string]$DriveId,
+
+            [Parameter(Position=3)]
+            [string]$PureOneToken,
+
+            [Parameter(Position=4)]
+            [PureOneOrganization[]]$PureOneOrganization
+    )
+    $restQuery = ""
+    if ($DriveName -ne "") {
+        $restQuery = "?names=`'$($DriveName)`'"
+    }
+    if ($ArrayName -ne "") {
+        if ($restQuery -eq "") {
+            $restQuery = "?filter=arrays[any].name=`'$($ArrayName)`'"
+        } else {
+            $restQuery += "&filter=arrays[any].name=`'$($ArrayName)`'"
+        }
+    }
+    if ($DriveId -ne "") {
+        $restQuery = "?ids=`'$($DriveId)`'"
+    }
+    $tokens = @()
+    if ([string]::IsNullOrWhiteSpace($pureOneToken)) {
+        $tokens += Get-PureOneToken -pureOneOrganization $pureOneOrganization
+    } else {
+        $tokens += $pureOneToken
+    }
+    $pureDrives = @()
+    foreach ($token in $tokens) {
+        $pureDrives += New-PureOneOperation -resourceType "drives" -queryFilter $restQuery -pureOneToken $token -restOperationType GET -ErrorAction SilentlyContinue
+    }
+    if (($pureDrives | Measure-Object).Count -eq 0) {
+        throw "No matching drives were found on entered Pure1 organization(s)."
+    }
+    return $pureDrives
+}
+function Get-PureOnePort {
+    <#
+    .SYNOPSIS
+      Returns all FlashArray ports from your Pure1 account.
+    .DESCRIPTION
+      Returns all FlashArray ports from your Pure1 account. Allows for filters.
+    .INPUTS
+      None required. Optional inputs are port name, array name, and Pure1 access token.
+    .OUTPUTS
+      Returns the FlashArray port information in Pure1.
+    .EXAMPLE
+      PS C:\ Get-PureOnePort
+
+      Returns all ports in all connected Pure1 organizations
+    .EXAMPLE
+      PS C:\ Get-PureOnePort -ArrayName myArray
+
+      Returns all ports for the specified array
+    .NOTES
+      Version:        1.0
+      Author:         Pure Storage
+      Creation Date:  2026-03-28
+      Purpose/Change: Initial release
+    #>
+
+    [CmdletBinding()]
+    Param(
+            [Parameter(Position=0)]
+            [string]$PortName,
+
+            [Parameter(Position=1)]
+            [string]$ArrayName,
+
+            [Parameter(Position=2)]
+            [string]$PortId,
+
+            [Parameter(Position=3)]
+            [string]$PureOneToken,
+
+            [Parameter(Position=4)]
+            [PureOneOrganization[]]$PureOneOrganization
+    )
+    $restQuery = ""
+    if ($PortName -ne "") {
+        $restQuery = "?names=`'$($PortName)`'"
+    }
+    if ($ArrayName -ne "") {
+        if ($restQuery -eq "") {
+            $restQuery = "?filter=arrays[any].name=`'$($ArrayName)`'"
+        } else {
+            $restQuery += "&filter=arrays[any].name=`'$($ArrayName)`'"
+        }
+    }
+    if ($PortId -ne "") {
+        $restQuery = "?ids=`'$($PortId)`'"
+    }
+    $tokens = @()
+    if ([string]::IsNullOrWhiteSpace($pureOneToken)) {
+        $tokens += Get-PureOneToken -pureOneOrganization $pureOneOrganization
+    } else {
+        $tokens += $pureOneToken
+    }
+    $purePorts = @()
+    foreach ($token in $tokens) {
+        $purePorts += New-PureOneOperation -resourceType "ports" -queryFilter $restQuery -pureOneToken $token -restOperationType GET -ErrorAction SilentlyContinue
+    }
+    if (($purePorts | Measure-Object).Count -eq 0) {
+        throw "No matching ports were found on entered Pure1 organization(s)."
+    }
+    return $purePorts
+}
+function Get-PureOneHardware {
+    <#
+    .SYNOPSIS
+      Returns all hardware components from your Pure1 account.
+    .DESCRIPTION
+      Returns all hardware components from your Pure1 account. Allows for filters.
+    .INPUTS
+      None required. Optional inputs are hardware name, array name, and Pure1 access token.
+    .OUTPUTS
+      Returns the hardware component information in Pure1.
+    .EXAMPLE
+      PS C:\ Get-PureOneHardware
+
+      Returns all hardware components in all connected Pure1 organizations
+    .EXAMPLE
+      PS C:\ Get-PureOneHardware -ArrayName myArray
+
+      Returns all hardware components for the specified array
+    .NOTES
+      Version:        1.0
+      Author:         Pure Storage
+      Creation Date:  2026-03-28
+      Purpose/Change: Initial release
+    #>
+
+    [CmdletBinding()]
+    Param(
+            [Parameter(Position=0)]
+            [string]$HardwareName,
+
+            [Parameter(Position=1)]
+            [string]$ArrayName,
+
+            [Parameter(Position=2)]
+            [string]$HardwareId,
+
+            [Parameter(Position=3)]
+            [string]$PureOneToken,
+
+            [Parameter(Position=4)]
+            [PureOneOrganization[]]$PureOneOrganization
+    )
+    $restQuery = ""
+    if ($HardwareName -ne "") {
+        $restQuery = "?names=`'$($HardwareName)`'"
+    }
+    if ($ArrayName -ne "") {
+        if ($restQuery -eq "") {
+            $restQuery = "?filter=arrays[any].name=`'$($ArrayName)`'"
+        } else {
+            $restQuery += "&filter=arrays[any].name=`'$($ArrayName)`'"
+        }
+    }
+    if ($HardwareId -ne "") {
+        $restQuery = "?ids=`'$($HardwareId)`'"
+    }
+    $tokens = @()
+    if ([string]::IsNullOrWhiteSpace($pureOneToken)) {
+        $tokens += Get-PureOneToken -pureOneOrganization $pureOneOrganization
+    } else {
+        $tokens += $pureOneToken
+    }
+    $pureHardware = @()
+    foreach ($token in $tokens) {
+        $pureHardware += New-PureOneOperation -resourceType "hardware" -queryFilter $restQuery -pureOneToken $token -restOperationType GET -ErrorAction SilentlyContinue
+    }
+    if (($pureHardware | Measure-Object).Count -eq 0) {
+        throw "No matching hardware was found on entered Pure1 organization(s)."
+    }
+    return $pureHardware
+}
+function Get-PureOneBlade {
+    <#
+    .SYNOPSIS
+      Returns all FlashBlade blades from your Pure1 account.
+    .DESCRIPTION
+      Returns all FlashBlade blades from your Pure1 account. Allows for filters.
+    .INPUTS
+      None required. Optional inputs are blade name, array name, and Pure1 access token.
+    .OUTPUTS
+      Returns the FlashBlade blade information in Pure1.
+    .EXAMPLE
+      PS C:\ Get-PureOneBlade
+
+      Returns all blades in all connected Pure1 organizations
+    .EXAMPLE
+      PS C:\ Get-PureOneBlade -ArrayName myFlashBlade
+
+      Returns all blades for the specified FlashBlade
+    .NOTES
+      Version:        1.0
+      Author:         Pure Storage
+      Creation Date:  2026-03-28
+      Purpose/Change: Initial release
+    #>
+
+    [CmdletBinding()]
+    Param(
+            [Parameter(Position=0)]
+            [string]$BladeName,
+
+            [Parameter(Position=1)]
+            [string]$ArrayName,
+
+            [Parameter(Position=2)]
+            [string]$BladeId,
+
+            [Parameter(Position=3)]
+            [string]$PureOneToken,
+
+            [Parameter(Position=4)]
+            [PureOneOrganization[]]$PureOneOrganization
+    )
+    $restQuery = ""
+    if ($BladeName -ne "") {
+        $restQuery = "?names=`'$($BladeName)`'"
+    }
+    if ($ArrayName -ne "") {
+        if ($restQuery -eq "") {
+            $restQuery = "?filter=arrays[any].name=`'$($ArrayName)`'"
+        } else {
+            $restQuery += "&filter=arrays[any].name=`'$($ArrayName)`'"
+        }
+    }
+    if ($BladeId -ne "") {
+        $restQuery = "?ids=`'$($BladeId)`'"
+    }
+    $tokens = @()
+    if ([string]::IsNullOrWhiteSpace($pureOneToken)) {
+        $tokens += Get-PureOneToken -pureOneOrganization $pureOneOrganization
+    } else {
+        $tokens += $pureOneToken
+    }
+    $pureBlades = @()
+    foreach ($token in $tokens) {
+        $pureBlades += New-PureOneOperation -resourceType "blades" -queryFilter $restQuery -pureOneToken $token -restOperationType GET -ErrorAction SilentlyContinue
+    }
+    if (($pureBlades | Measure-Object).Count -eq 0) {
+        throw "No matching blades were found on entered Pure1 organization(s)."
+    }
+    return $pureBlades
+}
+function Get-PureOneBucket {
+    <#
+    .SYNOPSIS
+      Returns all FlashBlade S3 buckets from your Pure1 account.
+    .DESCRIPTION
+      Returns all FlashBlade S3 buckets from your Pure1 account. Allows for filters.
+    .INPUTS
+      None required. Optional inputs are bucket name, array name, and Pure1 access token.
+    .OUTPUTS
+      Returns the FlashBlade bucket information in Pure1.
+    .EXAMPLE
+      PS C:\ Get-PureOneBucket
+
+      Returns all buckets in all connected Pure1 organizations
+    .EXAMPLE
+      PS C:\ Get-PureOneBucket -ArrayName myFlashBlade
+
+      Returns all buckets for the specified FlashBlade
+    .NOTES
+      Version:        1.0
+      Author:         Pure Storage
+      Creation Date:  2026-03-28
+      Purpose/Change: Initial release
+    #>
+
+    [CmdletBinding()]
+    Param(
+            [Parameter(Position=0)]
+            [string]$BucketName,
+
+            [Parameter(Position=1)]
+            [string]$ArrayName,
+
+            [Parameter(Position=2)]
+            [string]$BucketId,
+
+            [Parameter(Position=3)]
+            [string]$PureOneToken,
+
+            [Parameter(Position=4)]
+            [PureOneOrganization[]]$PureOneOrganization
+    )
+    $restQuery = ""
+    if ($BucketName -ne "") {
+        $restQuery = "?names=`'$($BucketName)`'"
+    }
+    if ($ArrayName -ne "") {
+        if ($restQuery -eq "") {
+            $restQuery = "?filter=arrays[any].name=`'$($ArrayName)`'"
+        } else {
+            $restQuery += "&filter=arrays[any].name=`'$($ArrayName)`'"
+        }
+    }
+    if ($BucketId -ne "") {
+        $restQuery = "?ids=`'$($BucketId)`'"
+    }
+    $tokens = @()
+    if ([string]::IsNullOrWhiteSpace($pureOneToken)) {
+        $tokens += Get-PureOneToken -pureOneOrganization $pureOneOrganization
+    } else {
+        $tokens += $pureOneToken
+    }
+    $pureBuckets = @()
+    foreach ($token in $tokens) {
+        $pureBuckets += New-PureOneOperation -resourceType "buckets" -queryFilter $restQuery -pureOneToken $token -restOperationType GET -ErrorAction SilentlyContinue
+    }
+    if (($pureBuckets | Measure-Object).Count -eq 0) {
+        throw "No matching buckets were found on entered Pure1 organization(s)."
+    }
+    return $pureBuckets
+}
+function Get-PureOnePodReplicaLink {
+    <#
+    .SYNOPSIS
+      Returns all FlashArray pod replica links from your Pure1 account.
+    .DESCRIPTION
+      Returns all FlashArray pod replica links from your Pure1 account. Allows for filters.
+    .INPUTS
+      None required. Optional inputs are link ID, source/target names, and Pure1 access token.
+    .OUTPUTS
+      Returns the FlashArray pod replica link information in Pure1.
+    .EXAMPLE
+      PS C:\ Get-PureOnePodReplicaLink
+
+      Returns all pod replica links in all connected Pure1 organizations
+    .EXAMPLE
+      PS C:\ Get-PureOnePodReplicaLink -SourcePodName myPod
+
+      Returns all replica links where the source pod matches the specified name
+    .NOTES
+      Version:        1.0
+      Author:         Pure Storage
+      Creation Date:  2026-03-28
+      Purpose/Change: Initial release
+    #>
+
+    [CmdletBinding()]
+    Param(
+            [Parameter(Position=0)]
+            [string]$LinkId,
+
+            [Parameter(Position=1)]
+            [string]$SourcePodName,
+
+            [Parameter(Position=2)]
+            [string]$TargetPodName,
+
+            [Parameter(Position=3)]
+            [string]$PureOneToken,
+
+            [Parameter(Position=4)]
+            [PureOneOrganization[]]$PureOneOrganization
+    )
+    $restQuery = ""
+    if ($LinkId -ne "") {
+        $restQuery = "?ids=`'$($LinkId)`'"
+    }
+    if ($SourcePodName -ne "") {
+        if ($restQuery -eq "") {
+            $restQuery = "?filter=local_pod.name=`'$($SourcePodName)`'"
+        } else {
+            $restQuery += "&filter=local_pod.name=`'$($SourcePodName)`'"
+        }
+    }
+    if ($TargetPodName -ne "") {
+        if ($restQuery -eq "") {
+            $restQuery = "?filter=remote_pod.name=`'$($TargetPodName)`'"
+        } else {
+            $restQuery += "&filter=remote_pod.name=`'$($TargetPodName)`'"
+        }
+    }
+    $tokens = @()
+    if ([string]::IsNullOrWhiteSpace($pureOneToken)) {
+        $tokens += Get-PureOneToken -pureOneOrganization $pureOneOrganization
+    } else {
+        $tokens += $pureOneToken
+    }
+    $pureLinks = @()
+    foreach ($token in $tokens) {
+        $pureLinks += New-PureOneOperation -resourceType "pod-replica-links" -queryFilter $restQuery -pureOneToken $token -restOperationType GET -ErrorAction SilentlyContinue
+    }
+    if (($pureLinks | Measure-Object).Count -eq 0) {
+        throw "No matching pod replica links were found on entered Pure1 organization(s)."
+    }
+    return $pureLinks
+}
+function Get-PureOneAudit {
+    <#
+    .SYNOPSIS
+      Returns CLI audit logs from FlashArray and FlashBlade appliances.
+    .DESCRIPTION
+      Returns CLI audit logs from FlashArray and FlashBlade appliances in your Pure1 account.
+    .INPUTS
+      None required. Optional inputs are audit name, array name, user, and Pure1 access token.
+    .OUTPUTS
+      Returns the audit log information in Pure1.
+    .EXAMPLE
+      PS C:\ Get-PureOneAudit
+
+      Returns all audit logs in all connected Pure1 organizations
+    .EXAMPLE
+      PS C:\ Get-PureOneAudit -ArrayName myArray
+
+      Returns audit logs for the specified array
+    .NOTES
+      Version:        1.0
+      Author:         Pure Storage
+      Creation Date:  2026-03-28
+      Purpose/Change: Initial release
+    #>
+
+    [CmdletBinding()]
+    Param(
+            [Parameter(Position=0)]
+            [string]$AuditName,
+
+            [Parameter(Position=1)]
+            [string]$ArrayName,
+
+            [Parameter(Position=2)]
+            [string]$AuditId,
+
+            [Parameter(Position=3)]
+            [string]$User,
+
+            [Parameter(Position=4)]
+            [string]$PureOneToken,
+
+            [Parameter(Position=5)]
+            [PureOneOrganization[]]$PureOneOrganization
+    )
+    $restQuery = ""
+    if ($AuditName -ne "") {
+        $restQuery = "?names=`'$($AuditName)`'"
+    }
+    if ($ArrayName -ne "") {
+        if ($restQuery -eq "") {
+            $restQuery = "?filter=arrays[any].name=`'$($ArrayName)`'"
+        } else {
+            $restQuery += "&filter=arrays[any].name=`'$($ArrayName)`'"
+        }
+    }
+    if ($AuditId -ne "") {
+        $restQuery = "?ids=`'$($AuditId)`'"
+    }
+    if ($User -ne "") {
+        if ($restQuery -eq "") {
+            $restQuery = "?filter=user=`'$($User)`'"
+        } else {
+            $restQuery += "&filter=user=`'$($User)`'"
+        }
+    }
+    $tokens = @()
+    if ([string]::IsNullOrWhiteSpace($pureOneToken)) {
+        $tokens += Get-PureOneToken -pureOneOrganization $pureOneOrganization
+    } else {
+        $tokens += $pureOneToken
+    }
+    $pureAudits = @()
+    foreach ($token in $tokens) {
+        $pureAudits += New-PureOneOperation -resourceType "audits" -queryFilter $restQuery -pureOneToken $token -restOperationType GET -ErrorAction SilentlyContinue
+    }
+    if (($pureAudits | Measure-Object).Count -eq 0) {
+        throw "No matching audit logs were found on entered Pure1 organization(s)."
+    }
+    return $pureAudits
+}
+function Get-PureOneDirectory {
+    <#
+    .SYNOPSIS
+      Returns FlashArray managed directories from your Pure1 account.
+    .DESCRIPTION
+      Returns FlashArray managed directories from your Pure1 account. Allows for filters.
+    .INPUTS
+      None required. Optional inputs are directory name, array name, and Pure1 access token.
+    .OUTPUTS
+      Returns the managed directory information in Pure1.
+    .EXAMPLE
+      PS C:\ Get-PureOneDirectory
+
+      Returns all directories in all connected Pure1 organizations
+    .EXAMPLE
+      PS C:\ Get-PureOneDirectory -ArrayName myArray
+
+      Returns directories for the specified array
+    .NOTES
+      Version:        1.0
+      Author:         Pure Storage
+      Creation Date:  2026-03-28
+      Purpose/Change: Initial release
+    #>
+
+    [CmdletBinding()]
+    Param(
+            [Parameter(Position=0)]
+            [string]$DirectoryName,
+
+            [Parameter(Position=1)]
+            [string]$ArrayName,
+
+            [Parameter(Position=2)]
+            [string]$DirectoryId,
+
+            [Parameter(Position=3)]
+            [string]$PureOneToken,
+
+            [Parameter(Position=4)]
+            [PureOneOrganization[]]$PureOneOrganization
+    )
+    $restQuery = ""
+    if ($DirectoryName -ne "") {
+        $restQuery = "?names=`'$($DirectoryName)`'"
+    }
+    if ($ArrayName -ne "") {
+        if ($restQuery -eq "") {
+            $restQuery = "?filter=arrays[any].name=`'$($ArrayName)`'"
+        } else {
+            $restQuery += "&filter=arrays[any].name=`'$($ArrayName)`'"
+        }
+    }
+    if ($DirectoryId -ne "") {
+        $restQuery = "?ids=`'$($DirectoryId)`'"
+    }
+    $tokens = @()
+    if ([string]::IsNullOrWhiteSpace($pureOneToken)) {
+        $tokens += Get-PureOneToken -pureOneOrganization $pureOneOrganization
+    } else {
+        $tokens += $pureOneToken
+    }
+    $pureDirectories = @()
+    foreach ($token in $tokens) {
+        $pureDirectories += New-PureOneOperation -resourceType "directories" -queryFilter $restQuery -pureOneToken $token -restOperationType GET -ErrorAction SilentlyContinue
+    }
+    if (($pureDirectories | Measure-Object).Count -eq 0) {
+        throw "No matching directories were found on entered Pure1 organization(s)."
+    }
+    return $pureDirectories
+}
+function Get-PureOnePolicy {
+    <#
+    .SYNOPSIS
+      Returns FlashBlade policies from your Pure1 account.
+    .DESCRIPTION
+      Returns FlashBlade policies from your Pure1 account. Allows for filters.
+    .INPUTS
+      None required. Optional inputs are policy name, array name, and Pure1 access token.
+    .OUTPUTS
+      Returns the FlashBlade policy information in Pure1.
+    .EXAMPLE
+      PS C:\ Get-PureOnePolicy
+
+      Returns all policies in all connected Pure1 organizations
+    .EXAMPLE
+      PS C:\ Get-PureOnePolicy -ArrayName myFlashBlade
+
+      Returns policies for the specified FlashBlade
+    .NOTES
+      Version:        1.0
+      Author:         Pure Storage
+      Creation Date:  2026-03-28
+      Purpose/Change: Initial release
+    #>
+
+    [CmdletBinding()]
+    Param(
+            [Parameter(Position=0)]
+            [string]$PolicyName,
+
+            [Parameter(Position=1)]
+            [string]$ArrayName,
+
+            [Parameter(Position=2)]
+            [string]$PolicyId,
+
+            [Parameter(Position=3)]
+            [string]$PureOneToken,
+
+            [Parameter(Position=4)]
+            [PureOneOrganization[]]$PureOneOrganization
+    )
+    $restQuery = ""
+    if ($PolicyName -ne "") {
+        $restQuery = "?names=`'$($PolicyName)`'"
+    }
+    if ($ArrayName -ne "") {
+        if ($restQuery -eq "") {
+            $restQuery = "?filter=arrays[any].name=`'$($ArrayName)`'"
+        } else {
+            $restQuery += "&filter=arrays[any].name=`'$($ArrayName)`'"
+        }
+    }
+    if ($PolicyId -ne "") {
+        $restQuery = "?ids=`'$($PolicyId)`'"
+    }
+    $tokens = @()
+    if ([string]::IsNullOrWhiteSpace($pureOneToken)) {
+        $tokens += Get-PureOneToken -pureOneOrganization $pureOneOrganization
+    } else {
+        $tokens += $pureOneToken
+    }
+    $purePolicies = @()
+    foreach ($token in $tokens) {
+        $purePolicies += New-PureOneOperation -resourceType "policies" -queryFilter $restQuery -pureOneToken $token -restOperationType GET -ErrorAction SilentlyContinue
+    }
+    if (($purePolicies | Measure-Object).Count -eq 0) {
+        throw "No matching policies were found on entered Pure1 organization(s)."
+    }
+    return $purePolicies
+}
+function Get-PureOneTarget {
+    <#
+    .SYNOPSIS
+      Returns FlashBlade replication targets from your Pure1 account.
+    .DESCRIPTION
+      Returns FlashBlade external replication targets from your Pure1 account.
+    .INPUTS
+      None required. Optional inputs are target name, array name, and Pure1 access token.
+    .OUTPUTS
+      Returns the FlashBlade replication target information in Pure1.
+    .EXAMPLE
+      PS C:\ Get-PureOneTarget
+
+      Returns all replication targets in all connected Pure1 organizations
+    .EXAMPLE
+      PS C:\ Get-PureOneTarget -ArrayName myFlashBlade
+
+      Returns replication targets for the specified FlashBlade
+    .NOTES
+      Version:        1.0
+      Author:         Pure Storage
+      Creation Date:  2026-03-28
+      Purpose/Change: Initial release
+    #>
+
+    [CmdletBinding()]
+    Param(
+            [Parameter(Position=0)]
+            [string]$TargetName,
+
+            [Parameter(Position=1)]
+            [string]$ArrayName,
+
+            [Parameter(Position=2)]
+            [string]$TargetId,
+
+            [Parameter(Position=3)]
+            [string]$PureOneToken,
+
+            [Parameter(Position=4)]
+            [PureOneOrganization[]]$PureOneOrganization
+    )
+    $restQuery = ""
+    if ($TargetName -ne "") {
+        $restQuery = "?names=`'$($TargetName)`'"
+    }
+    if ($ArrayName -ne "") {
+        if ($restQuery -eq "") {
+            $restQuery = "?filter=arrays[any].name=`'$($ArrayName)`'"
+        } else {
+            $restQuery += "&filter=arrays[any].name=`'$($ArrayName)`'"
+        }
+    }
+    if ($TargetId -ne "") {
+        $restQuery = "?ids=`'$($TargetId)`'"
+    }
+    $tokens = @()
+    if ([string]::IsNullOrWhiteSpace($pureOneToken)) {
+        $tokens += Get-PureOneToken -pureOneOrganization $pureOneOrganization
+    } else {
+        $tokens += $pureOneToken
+    }
+    $pureTargets = @()
+    foreach ($token in $tokens) {
+        $pureTargets += New-PureOneOperation -resourceType "targets" -queryFilter $restQuery -pureOneToken $token -restOperationType GET -ErrorAction SilentlyContinue
+    }
+    if (($pureTargets | Measure-Object).Count -eq 0) {
+        throw "No matching targets were found on entered Pure1 organization(s)."
+    }
+    return $pureTargets
+}
+function Get-PureOneFileSystemReplicaLink {
+    <#
+    .SYNOPSIS
+      Returns FlashBlade file system replica links from your Pure1 account.
+    .DESCRIPTION
+      Returns FlashBlade file system replica links from your Pure1 account.
+    .INPUTS
+      None required. Optional inputs are link ID, source/target names, and Pure1 access token.
+    .OUTPUTS
+      Returns the FlashBlade file system replica link information in Pure1.
+    .EXAMPLE
+      PS C:\ Get-PureOneFileSystemReplicaLink
+
+      Returns all file system replica links in all connected Pure1 organizations
+    .EXAMPLE
+      PS C:\ Get-PureOneFileSystemReplicaLink -SourceName myFileSystem
+
+      Returns replica links where the source matches the specified name
+    .NOTES
+      Version:        1.0
+      Author:         Pure Storage
+      Creation Date:  2026-03-28
+      Purpose/Change: Initial release
+    #>
+
+    [CmdletBinding()]
+    Param(
+            [Parameter(Position=0)]
+            [string]$LinkId,
+
+            [Parameter(Position=1)]
+            [string]$SourceName,
+
+            [Parameter(Position=2)]
+            [string]$TargetName,
+
+            [Parameter(Position=3)]
+            [string]$PureOneToken,
+
+            [Parameter(Position=4)]
+            [PureOneOrganization[]]$PureOneOrganization
+    )
+    $restQuery = ""
+    if ($LinkId -ne "") {
+        $restQuery = "?ids=`'$($LinkId)`'"
+    }
+    if ($SourceName -ne "") {
+        if ($restQuery -eq "") {
+            $restQuery = "?source_names=`'$($SourceName)`'"
+        } else {
+            $restQuery += "&source_names=`'$($SourceName)`'"
+        }
+    }
+    if ($TargetName -ne "") {
+        if ($restQuery -eq "") {
+            $restQuery = "?target_names=`'$($TargetName)`'"
+        } else {
+            $restQuery += "&target_names=`'$($TargetName)`'"
+        }
+    }
+    $tokens = @()
+    if ([string]::IsNullOrWhiteSpace($pureOneToken)) {
+        $tokens += Get-PureOneToken -pureOneOrganization $pureOneOrganization
+    } else {
+        $tokens += $pureOneToken
+    }
+    $pureLinks = @()
+    foreach ($token in $tokens) {
+        $pureLinks += New-PureOneOperation -resourceType "file-system-replica-links" -queryFilter $restQuery -pureOneToken $token -restOperationType GET -ErrorAction SilentlyContinue
+    }
+    if (($pureLinks | Measure-Object).Count -eq 0) {
+        throw "No matching file system replica links were found on entered Pure1 organization(s)."
+    }
+    return $pureLinks
+}
+function Get-PureOneBucketReplicaLink {
+    <#
+    .SYNOPSIS
+      Returns FlashBlade bucket replica links from your Pure1 account.
+    .DESCRIPTION
+      Returns FlashBlade bucket replica links from your Pure1 account.
+    .INPUTS
+      None required. Optional inputs are link ID, source/target names, and Pure1 access token.
+    .OUTPUTS
+      Returns the FlashBlade bucket replica link information in Pure1.
+    .EXAMPLE
+      PS C:\ Get-PureOneBucketReplicaLink
+
+      Returns all bucket replica links in all connected Pure1 organizations
+    .EXAMPLE
+      PS C:\ Get-PureOneBucketReplicaLink -SourceName myBucket
+
+      Returns replica links where the source bucket matches the specified name
+    .NOTES
+      Version:        1.0
+      Author:         Pure Storage
+      Creation Date:  2026-03-28
+      Purpose/Change: Initial release
+    #>
+
+    [CmdletBinding()]
+    Param(
+            [Parameter(Position=0)]
+            [string]$LinkId,
+
+            [Parameter(Position=1)]
+            [string]$SourceName,
+
+            [Parameter(Position=2)]
+            [string]$TargetName,
+
+            [Parameter(Position=3)]
+            [string]$PureOneToken,
+
+            [Parameter(Position=4)]
+            [PureOneOrganization[]]$PureOneOrganization
+    )
+    $restQuery = ""
+    if ($LinkId -ne "") {
+        $restQuery = "?ids=`'$($LinkId)`'"
+    }
+    if ($SourceName -ne "") {
+        if ($restQuery -eq "") {
+            $restQuery = "?source_names=`'$($SourceName)`'"
+        } else {
+            $restQuery += "&source_names=`'$($SourceName)`'"
+        }
+    }
+    if ($TargetName -ne "") {
+        if ($restQuery -eq "") {
+            $restQuery = "?target_names=`'$($TargetName)`'"
+        } else {
+            $restQuery += "&target_names=`'$($TargetName)`'"
+        }
+    }
+    $tokens = @()
+    if ([string]::IsNullOrWhiteSpace($pureOneToken)) {
+        $tokens += Get-PureOneToken -pureOneOrganization $pureOneOrganization
+    } else {
+        $tokens += $pureOneToken
+    }
+    $pureLinks = @()
+    foreach ($token in $tokens) {
+        $pureLinks += New-PureOneOperation -resourceType "bucket-replica-links" -queryFilter $restQuery -pureOneToken $token -restOperationType GET -ErrorAction SilentlyContinue
+    }
+    if (($pureLinks | Measure-Object).Count -eq 0) {
+        throw "No matching bucket replica links were found on entered Pure1 organization(s)."
+    }
+    return $pureLinks
+}
+function Get-PureOneObjectStoreAccount {
+    <#
+    .SYNOPSIS
+      Returns FlashBlade object store accounts from your Pure1 account.
+    .DESCRIPTION
+      Returns FlashBlade object store accounts from your Pure1 account.
+    .INPUTS
+      None required. Optional inputs are account name, array name, and Pure1 access token.
+    .OUTPUTS
+      Returns the FlashBlade object store account information in Pure1.
+    .EXAMPLE
+      PS C:\ Get-PureOneObjectStoreAccount
+
+      Returns all object store accounts in all connected Pure1 organizations
+    .EXAMPLE
+      PS C:\ Get-PureOneObjectStoreAccount -ArrayName myFlashBlade
+
+      Returns object store accounts for the specified FlashBlade
+    .NOTES
+      Version:        1.0
+      Author:         Pure Storage
+      Creation Date:  2026-03-28
+      Purpose/Change: Initial release
+    #>
+
+    [CmdletBinding()]
+    Param(
+            [Parameter(Position=0)]
+            [string]$AccountName,
+
+            [Parameter(Position=1)]
+            [string]$ArrayName,
+
+            [Parameter(Position=2)]
+            [string]$AccountId,
+
+            [Parameter(Position=3)]
+            [string]$PureOneToken,
+
+            [Parameter(Position=4)]
+            [PureOneOrganization[]]$PureOneOrganization
+    )
+    $restQuery = ""
+    if ($AccountName -ne "") {
+        $restQuery = "?names=`'$($AccountName)`'"
+    }
+    if ($ArrayName -ne "") {
+        if ($restQuery -eq "") {
+            $restQuery = "?filter=arrays[any].name=`'$($ArrayName)`'"
+        } else {
+            $restQuery += "&filter=arrays[any].name=`'$($ArrayName)`'"
+        }
+    }
+    if ($AccountId -ne "") {
+        $restQuery = "?ids=`'$($AccountId)`'"
+    }
+    $tokens = @()
+    if ([string]::IsNullOrWhiteSpace($pureOneToken)) {
+        $tokens += Get-PureOneToken -pureOneOrganization $pureOneOrganization
+    } else {
+        $tokens += $pureOneToken
+    }
+    $pureAccounts = @()
+    foreach ($token in $tokens) {
+        $pureAccounts += New-PureOneOperation -resourceType "object-store-accounts" -queryFilter $restQuery -pureOneToken $token -restOperationType GET -ErrorAction SilentlyContinue
+    }
+    if (($pureAccounts | Measure-Object).Count -eq 0) {
+        throw "No matching object store accounts were found on entered Pure1 organization(s)."
+    }
+    return $pureAccounts
+}
+function Get-PureOneHardwareConnector {
+    <#
+    .SYNOPSIS
+      Returns FlashBlade hardware connectors from your Pure1 account.
+    .DESCRIPTION
+      Returns FlashBlade hardware connectors from your Pure1 account.
+    .INPUTS
+      None required. Optional inputs are connector name, array name, and Pure1 access token.
+    .OUTPUTS
+      Returns the FlashBlade hardware connector information in Pure1.
+    .EXAMPLE
+      PS C:\ Get-PureOneHardwareConnector
+
+      Returns all hardware connectors in all connected Pure1 organizations
+    .EXAMPLE
+      PS C:\ Get-PureOneHardwareConnector -ArrayName myFlashBlade
+
+      Returns hardware connectors for the specified FlashBlade
+    .NOTES
+      Version:        1.0
+      Author:         Pure Storage
+      Creation Date:  2026-03-28
+      Purpose/Change: Initial release
+    #>
+
+    [CmdletBinding()]
+    Param(
+            [Parameter(Position=0)]
+            [string]$ConnectorName,
+
+            [Parameter(Position=1)]
+            [string]$ArrayName,
+
+            [Parameter(Position=2)]
+            [string]$ConnectorId,
+
+            [Parameter(Position=3)]
+            [string]$PureOneToken,
+
+            [Parameter(Position=4)]
+            [PureOneOrganization[]]$PureOneOrganization
+    )
+    $restQuery = ""
+    if ($ConnectorName -ne "") {
+        $restQuery = "?names=`'$($ConnectorName)`'"
+    }
+    if ($ArrayName -ne "") {
+        if ($restQuery -eq "") {
+            $restQuery = "?filter=arrays[any].name=`'$($ArrayName)`'"
+        } else {
+            $restQuery += "&filter=arrays[any].name=`'$($ArrayName)`'"
+        }
+    }
+    if ($ConnectorId -ne "") {
+        $restQuery = "?ids=`'$($ConnectorId)`'"
+    }
+    $tokens = @()
+    if ([string]::IsNullOrWhiteSpace($pureOneToken)) {
+        $tokens += Get-PureOneToken -pureOneOrganization $pureOneOrganization
+    } else {
+        $tokens += $pureOneToken
+    }
+    $pureConnectors = @()
+    foreach ($token in $tokens) {
+        $pureConnectors += New-PureOneOperation -resourceType "hardware-connectors" -queryFilter $restQuery -pureOneToken $token -restOperationType GET -ErrorAction SilentlyContinue
+    }
+    if (($pureConnectors | Measure-Object).Count -eq 0) {
+        throw "No matching hardware connectors were found on entered Pure1 organization(s)."
+    }
+    return $pureConnectors
+}
+function Get-PureOneSustainability {
+    <#
+    .SYNOPSIS
+      Returns sustainability and energy consumption data for arrays from your Pure1 account.
+    .DESCRIPTION
+      Returns sustainability assessment data including energy consumption metrics for FlashArray and FlashBlade appliances from your Pure1 account.
+    .INPUTS
+      None required. Optional inputs are array name, array ID, and Pure1 access token.
+    .OUTPUTS
+      Returns the sustainability assessment information in Pure1.
+    .EXAMPLE
+      PS C:\ Get-PureOneSustainability
+
+      Returns sustainability data for all arrays in all connected Pure1 organizations
+    .EXAMPLE
+      PS C:\ Get-PureOneSustainability -ArrayName myArray
+
+      Returns sustainability data for the specified array
+    .EXAMPLE
+      PS C:\ Get-PureOneSustainability -IncludeInsights
+
+      Returns sustainability data including insights for all arrays
+    .NOTES
+      Version:        1.0
+      Author:         Pure Storage
+      Creation Date:  2026-03-28
+      Purpose/Change: Initial release
+    #>
+
+    [CmdletBinding()]
+    Param(
+            [Parameter(Position=0)]
+            [string]$ArrayName,
+
+            [Parameter(Position=1)]
+            [string]$ArrayId,
+
+            [Parameter(Position=2)]
+            [switch]$IncludeInsights,
+
+            [Parameter(Position=3)]
+            [string]$PureOneToken,
+
+            [Parameter(Position=4)]
+            [PureOneOrganization[]]$PureOneOrganization
+    )
+    $restQuery = ""
+    if ($ArrayName -ne "") {
+        $restQuery = "?names=`'$($ArrayName)`'"
+    }
+    if ($ArrayId -ne "") {
+        $restQuery = "?ids=`'$($ArrayId)`'"
+    }
+    $tokens = @()
+    if ([string]::IsNullOrWhiteSpace($pureOneToken)) {
+        $tokens += Get-PureOneToken -pureOneOrganization $pureOneOrganization
+    } else {
+        $tokens += $pureOneToken
+    }
+    $pureSustainability = @()
+    foreach ($token in $tokens) {
+        # Get main sustainability data
+        $pureSustainability += New-PureOneOperation -resourceType "assessment/sustainability/arrays" -queryFilter $restQuery -pureOneToken $token -restOperationType GET -ErrorAction SilentlyContinue
+
+        # Optionally get insights
+        if ($IncludeInsights) {
+            $insights = New-PureOneOperation -resourceType "assessment/sustainability/insights/arrays" -queryFilter $restQuery -pureOneToken $token -restOperationType GET -ErrorAction SilentlyContinue
+            if ($insights) {
+                # Add insights as a property to matching arrays
+                foreach ($item in $pureSustainability) {
+                    $matchingInsight = $insights | Where-Object { $_.array.id -eq $item.array.id }
+                    if ($matchingInsight) {
+                        $item | Add-Member -NotePropertyName "insights" -NotePropertyValue $matchingInsight -Force
+                    }
+                }
+            }
+        }
+    }
+    if (($pureSustainability | Measure-Object).Count -eq 0) {
+        throw "No matching sustainability data was found on entered Pure1 organization(s)."
+    }
+    return $pureSustainability
 }
 #Global variables
 $global:pureOneRateLimit = $null
