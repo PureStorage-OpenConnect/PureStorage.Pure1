@@ -1,11 +1,11 @@
-<#	
+<#
 	===========================================================================
 	 Created with: 	VSCode
 	 Created by:   	Cody Hosterman
-	 Organization: 	Pure Storage, Inc.
+	 Organization: 	Everpure (formerly Pure Storage) Inc.
 	 Filename:     	Cody.PureStorage.Pure1.psd1
-	 Version:		1.4.4.3
-	 Copyright:		2022 Pure Storage, Inc.
+	 Version:		1.4.5.0
+	 Copyright:		2026 Everpure, Inc.
 	-------------------------------------------------------------------------
 	 Module Name: PureStoragePure1PowerShell
 	Disclaimer
@@ -30,7 +30,7 @@
 	RootModule = 'PureStorage.Pure1.psm1'
 	
 	# Version number of this module; major.minor[.build[.revision]]
-	ModuleVersion = '1.4.4.3'
+	ModuleVersion = '1.4.5.0'
 	
 	# ID used to uniquely identify this module
 	GUID = '65867a33-8c09-4651-8043-96c2f7ca2893'
@@ -42,7 +42,7 @@
 	CompanyName = 'Pure Storage, Inc.'
 	
 	# Copyright statement for this module
-	Copyright = '(c) 2022 Pure Storage, Inc. All rights reserved.'
+	Copyright = '(c) 2026 Everpure, Inc. All rights reserved.'
 	
 	# Description of the functionality provided by this module
 	Description = 'Pure Storage Pure1 REST API integration with PowerShell.'
@@ -84,7 +84,7 @@
 	NestedModules = @()
 	
 	# Functions to export from this module
-	FunctionsToExport = 'New-PureOneConnection','Get-PureOneArray','New-PureOneOperation','Get-PureOneArrayTag','Set-PureOneArrayTag','Remove-PureOneArrayTag','Get-PureOneArrayNetworking','Get-PureOneMetricDetail','Get-PureOneMetric','Get-PureOneVolume','Get-PureOnePod','Get-PureOneVolumeSnapshot','Get-PureOneFileSystem','Get-PureOneFileSystemSnapshot','Get-PureOneArrayLoadMeter','New-PureOneCertificate','Get-PureOnePublicKey','New-PureOneJwt','Get-PureOneAlert','Get-PureOneSupportContract','Get-PureOneCertificate','Set-PureOneDefaultCertificate','Get-PureOneLicense','Get-PureOneSubscription'
+	FunctionsToExport = 'New-PureOneConnection','Get-PureOneArray','New-PureOneOperation','Get-PureOneArrayTag','Set-PureOneArrayTag','Remove-PureOneArrayTag','Get-PureOneArrayNetworking','Get-PureOneMetricDetail','Get-PureOneMetric','Get-PureOneVolume','Get-PureOnePod','Get-PureOneVolumeSnapshot','Get-PureOneFileSystem','Get-PureOneFileSystemSnapshot','Get-PureOneArrayLoadMeter','New-PureOneCertificate','Get-PureOnePublicKey','New-PureOneJwt','Get-PureOneAlert','Get-PureOneSupportContract','Get-PureOneCertificate','Set-PureOneDefaultCertificate','Get-PureOneLicense','Get-PureOneSubscription','Get-PureOneToken','Get-PureOneController','Get-PureOneDrive','Get-PureOnePort','Get-PureOneHardware','Get-PureOneBlade','Get-PureOneBucket','Get-PureOnePodReplicaLink','Get-PureOneAudit','Get-PureOneDirectory','Get-PureOnePolicy','Get-PureOneTarget','Get-PureOneFileSystemReplicaLink','Get-PureOneBucketReplicaLink','Get-PureOneObjectStoreAccount','Get-PureOneHardwareConnector','Get-PureOneSustainability'
 	
 	# Cmdlets to export from this module
 	CmdletsToExport = '*'
