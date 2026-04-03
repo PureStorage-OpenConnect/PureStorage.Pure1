@@ -69,7 +69,51 @@
 <!-- /wp:list -->
 
 <!-- wp:heading -->
-<h2>Latest version 1.4.4.3 (July 21st, 2022)</h2>
+<h2>Latest version 1.5.0.0 (March 31st, 2026)</h2>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>See version details:<a href="https://github.com/PureStorage-OpenConnect/PureStorage.Pure1/issues/56"> https://github.com/PureStorage-OpenConnect/PureStorage.Pure1/issues/56</a></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph -->
+<p><strong>New features:</strong></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:list -->
+<ul>
+<li>Get-PureOneController - Retrieve array controller information</li>
+<li>Get-PureOneDrive - Retrieve array drive information</li>
+<li>Get-PureOnePort - Retrieve array port information</li>
+<li>Get-PureOneHardware - Retrieve hardware component information</li>
+<li>Get-PureOneBlade - Retrieve FlashBlade blade information</li>
+<li>Get-PureOneBucket - Retrieve object store bucket information</li>
+<li>Get-PureOnePodReplicaLink - Retrieve pod replica link information</li>
+<li>Get-PureOneAudit - Retrieve audit log entries</li>
+<li>Get-PureOneDirectory - Retrieve managed directory information</li>
+<li>Get-PureOnePolicy - Retrieve policy information</li>
+<li>Get-PureOneTarget - Retrieve replication target information</li>
+<li>Get-PureOneFileSystemReplicaLink - Retrieve file system replica links</li>
+<li>Get-PureOneBucketReplicaLink - Retrieve bucket replica links</li>
+<li>Get-PureOneObjectStoreAccount - Retrieve object store accounts</li>
+<li>Get-PureOneHardwareConnector - Retrieve hardware connector information</li>
+<li>Get-PureOneSustainability - Retrieve energy consumption and sustainability metrics</li>
+</ul>
+<!-- /wp:list -->
+
+<!-- wp:paragraph -->
+<p><strong>Bug Fixes:</strong></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:list -->
+<ul>
+<li>Fixed GET-ErrorAction typo (missing space) that caused syntax errors</li>
+<li>Fixed openssl path handling for directories containing spaces (e.g., "My Drive")</li>
+</ul>
+<!-- /wp:list -->
+
+<!-- wp:heading -->
+<h2>Version 1.4.4.3 (July 21st, 2022)</h2>
 <!-- /wp:heading -->
 
 <!-- wp:paragraph -->
