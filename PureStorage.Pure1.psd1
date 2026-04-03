@@ -30,7 +30,7 @@
 	RootModule = 'PureStorage.Pure1.psm1'
 	
 	# Version number of this module; major.minor[.build[.revision]]
-	ModuleVersion = '1.4.5.0'
+	ModuleVersion = '1.5.0.0'
 	
 	# ID used to uniquely identify this module
 	GUID = '65867a33-8c09-4651-8043-96c2f7ca2893'
